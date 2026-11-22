@@ -49,3 +49,29 @@ _Avoid_: config version, checksum
 **Stale chunk**:
 A chunk produced under a chunker version or config hash that no longer matches the running configuration, and which a reindex must replace.
 _Avoid_: outdated chunk, orphan
+
+### Ingestion
+
+**Ingestion**:
+The pipeline that turns an accepted upload into retrievable chunks: parse, chunk, embed, activate.
+_Avoid_: indexing, processing, pipeline run
+
+**Ingestion stage**:
+One of parse, chunk, embed or activate — the unit that a document's reported progress advances through.
+_Avoid_: phase, step
+
+**Ingestion job**:
+The single unit of queue work that ingests one document, resumable from the stage artifacts that document already has.
+_Avoid_: task, worker run
+
+**Staged chunk**:
+A chunk written by an ingestion that has not finished, and therefore invisible to retrieval.
+_Avoid_: inactive chunk, partial chunk, pending chunk
+
+**Active chunk**:
+A chunk whose document finished ingesting; the only chunks retrieval may return.
+_Avoid_: indexed chunk, live chunk, published chunk
+
+**Maintenance sweep**:
+The periodic pass that purges staged chunks of failed or deleted documents and fails documents whose job was lost.
+_Avoid_: cleanup cron, janitor, garbage collector
