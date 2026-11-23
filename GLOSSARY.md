@@ -36,6 +36,28 @@ _Avoid_: page number, real page
 The single serialized rendering of a parsed document that every offset and quote refers to. Produced once per document and persisted.
 _Avoid_: extracted text, plain text, source text
 
+### Retrieval
+
+**Tenant**:
+The account whose documents a single query may see. One user is one tenant; no answer may draw on another tenant's documents.
+_Avoid_: workspace, organization, account
+
+**Dense branch**:
+The retrieval branch that ranks chunks by embedding similarity.
+_Avoid_: semantic search, vector leg
+
+**Lexical branch**:
+The retrieval branch that ranks chunks by how rare and how frequent their terms are, matching identifiers, names and rare words that embeddings blur.
+_Avoid_: keyword search, sparse leg, BM25 search
+
+**Fused ranking**:
+The single ordered list produced by merging the branches' rankings by position. Ordinal, not a similarity measure.
+_Avoid_: merged results, hybrid list
+
+**Retrieval gate**:
+The check that drops retrieved chunks whose document is not yet ready, applied after fusion and before hydration.
+_Avoid_: readiness filter, document check
+
 ### Configuration and provenance
 
 **Chunker version**:
