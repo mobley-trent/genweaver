@@ -97,3 +97,41 @@ _Avoid_: indexed chunk, live chunk, published chunk
 **Maintenance sweep**:
 The periodic pass that purges staged chunks of failed or deleted documents and fails documents whose job was lost.
 _Avoid_: cleanup cron, janitor, garbage collector
+
+### Answers and verification
+
+**Evidence set**:
+The chunks an answer was retrieved against, and the only chunks its citations may point at. A citation to anything outside it is invalid.
+_Avoid_: context, window, retrieved documents
+
+**Claim**:
+A sentence-level assertion in an answer, delimited by the system rather than by the generator. Every claim must carry at least one citation.
+_Avoid_: statement, sentence, span
+
+**Citation**:
+A pointer from a claim to the chunk that is said to support it, together with the quoted span the generator attributes to that chunk.
+_Avoid_: reference, source, footnote
+
+**Citation verification**:
+The check that a citation's quote is really in the cited chunk and that the chunk supports the claim. Retrieval says a chunk may be relevant; verification says it supports what was said.
+_Avoid_: citation checking, fact-checking, grounding
+
+**Verified citation**:
+A citation whose quote was located in the cited chunk and whose claim that chunk is scored as supporting.
+_Avoid_: valid citation, grounded citation, good citation
+
+**Partial citation**:
+A citation whose quote was located but whose claim the cited chunk supports only weakly — a real source, insufficient support.
+_Avoid_: weak citation, half-verified citation
+
+**Failed citation**:
+A citation whose quote could not be located in the cited chunk, whose chunk is not in the evidence set, or whose chunk does not support the claim.
+_Avoid_: bad citation, broken citation, hallucinated citation
+
+**Uncited claim**:
+A claim carrying no citation at all. Distinct from a failed citation, which points somewhere that did not hold up.
+_Avoid_: unsourced statement, bare claim
+
+**Unchecked claim**:
+A claim verification never ran on, because the verifier was unavailable or out of budget. Says nothing about whether the claim is supported.
+_Avoid_: unverified claim, unvalidated claim
