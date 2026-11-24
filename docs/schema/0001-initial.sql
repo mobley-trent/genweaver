@@ -92,8 +92,11 @@ create table documents (
   content_sha256     bytea not null check (octet_length(content_sha256) = 32),
   byte_size          bigint not null check (byte_size > 0),
   storage_path       text not null,
+  -- No `cancelling`/`cancelled`: deleting a document removes the row, and the
+  -- worker's checkpoint asks whether that row still exists. A tombstone would make
+  -- a deleted document visible to `GET /documents/{id}` and to the dedupe path.
   status             text not null default 'queued' check (status in
-                       ('queued', 'ingesting', 'ready', 'failed', 'cancelling', 'cancelled')),
+                       ('queued', 'ingesting', 'ready', 'failed')),
   stage              text check (stage in ('parse', 'chunk', 'embed', 'activate')),
   pages_total        integer check (pages_total >= 0),
   pages_parsed       integer not null default 0 check (pages_parsed >= 0),
@@ -317,9 +320,18 @@ create table answer_requests (
   state           text not null default 'in_flight'
                   check (state in ('in_flight', 'answered', 'failed')),
   answer_id       uuid unique references answers(id) on delete set null,
-  error_code      text,
+  -- Only the refusals that do not invite a retry settle a key, plus the stream's
+  -- pre-first-token provider failure. `rate_limited` and `answer_in_progress`
+  -- leave no row: they carry Retry-After and the same key is expected back.
+  error_code      text check (error_code in ('library_empty', 'budget_exhausted',
+                       'deployment_budget_exhausted', 'provider_unavailable')),
   created_at      timestamptz not null default now(),
-  settled_at      timestamptz
+  settled_at      timestamptz,
+  -- A failure always says why; a request that answered carries no code.
+  constraint answer_requests_failure_shape check (
+    (state = 'failed' and error_code is not null)
+    or (state <> 'failed' and error_code is null)
+  )
 );
 create unique index answer_requests_key on answer_requests (owner_id, idempotency_key);
 create unique index answer_requests_one_inflight on answer_requests (conversation_id)
