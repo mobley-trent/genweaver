@@ -103,7 +103,10 @@ create table documents (
   chunks_total       integer check (chunks_total >= 0),   -- current indexing generation
   chunks_embedded    integer not null default 0 check (chunks_embedded >= 0),
   attempt            smallint not null default 0,
-  error_code         text check (error_code in ('not_a_pdf', 'encrypted', 'parse_failed',
+  -- No `not_a_pdf`: the magic-byte sniff rejects a non-PDF at intake, with a 415 and
+  -- before any row exists, so the code has no producer; a file that passes the sniff
+  -- and will not parse is `parse_failed`. This list is exactly #14's failure_code set.
+  error_code         text check (error_code in ('encrypted', 'parse_failed',
                        'chunk_failed', 'embed_failed', 'activation_failed',
                        'page_limit_exceeded', 'job_lost')),
   error_message      text,
