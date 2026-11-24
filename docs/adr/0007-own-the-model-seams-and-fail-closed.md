@@ -37,7 +37,7 @@ class ChatProvider(Protocol):
     def ready(self) -> bool: ...
 
 class EmbeddingProvider(Protocol):
-    identity: EmbeddingIdentity                 # provider, model, dims
+    identity: EmbeddingIdentity                 # provider, model, dims, pinned revision
     max_input_tokens: int
     def embed(self, texts: Sequence[str]) -> list[list[float]]: ...
     def ready(self) -> bool: ...
@@ -75,9 +75,11 @@ CHAT_MODELS: dict[tuple[str, str], ChatModelFacts] = {
                                                     "deepseek-v4-pro", "V4-Pro-0813"),
 }
 
-EMBEDDING_MODELS: dict[tuple[str, str, int], EmbeddingModelFacts] = {
-    ("tei", "Qwen/Qwen3-Embedding-0.6B", 1024): EmbeddingModelFacts(max_input_tokens=32_768,
-                                                                    price_key="local-cpu"),
+# Keyed on the whole identity, revision included: two revisions of one model are two
+# vector spaces, and ADR 0014 names the collection after both (ADR 0002, amended).
+EMBEDDING_MODELS: dict[tuple[str, str, int, str], EmbeddingModelFacts] = {
+    ("tei", "Qwen/Qwen3-Embedding-0.6B", 1024, "Qwen3-Embedding-0.6B@9f2c7e1"):
+        EmbeddingModelFacts(max_input_tokens=32_768, price_key="local-cpu"),
 }
 ```
 
@@ -88,7 +90,8 @@ CHAT_PROVIDER=deepseek          CHAT_MODEL=deepseek-flash
 CHAT_BASE_URL=https://api.deepseek.com   CHAT_API_KEY=…
 CHAT_THINKING=off               CHAT_TEMPERATURE=0.2
 EMBEDDING_PROVIDER=tei          EMBEDDING_MODEL=Qwen/Qwen3-Embedding-0.6B
-EMBEDDING_DIMS=1024             EMBEDDING_BASE_URL=http://tei/v1
+EMBEDDING_DIMS=1024             EMBEDDING_REVISION=<pinned sha>
+EMBEDDING_BASE_URL=http://tei/v1
 VERIFIER_MODEL=hhem-2.1-open    VERIFIER_REVISION=<pinned sha>
 ```
 
@@ -120,7 +123,7 @@ and restarts, which is a visible, recorded change.
 | Artifact | Recorded |
 | --- | --- |
 | Answer | chat provider, model, echoed model string, `known_revision` at run time, thinking mode, temperature, parameters hash, prompt version |
-| Chunk | embedding identity `(provider, model, dims)`, model revision, alongside the existing `chunker_version` and `chunk_config_hash` |
+| Chunk | embedding identity `(provider, model, dims, revision)` — the tuple the collection name encodes — alongside the existing `chunker_version` and `chunk_config_hash` |
 | Verdict | verifier name, pinned checkpoint revision, and the threshold set in force |
 
 This is what makes "the answers got worse last Tuesday" answerable: the row says which model, in
@@ -161,8 +164,33 @@ which mode, under which prompt, verified by which checkpoint.
   ADR 0006 absorb it, and the PR gate never calls the model.
 - Provenance now records a **prompt version**, which forces context assembly to define what a prompt
   version is and when it bumps. That is fog on the map, not a decision this ticket could make.
-- The registry's `known_revision` is maintained by hand, because providers roll versions under a stable name. Noticing that a revision moved is an observability concern, added to the map's fog rather than settled here.
+- The registry's `known_revision` is maintained by hand, because providers roll versions under a stable name. Noticing that a revision moved is an observability concern, added to the map's fog rather than settled here. For embeddings the revision is not an observed value at all but part of the key — the amendment below says why.
 - The retry budget, its backoff and the three deadlines have **no measurement behind them**. Until the observability fog produces latency and error distributions, a change to any of them is a change without evidence, and tuning one to make a local run pass is the failure mode the paragraph above names.
 
 See [`docs/research/provider-abstraction.md`](../research/provider-abstraction.md) for the request
 shapes, the provider comparison and the sources this rests on.
+
+## Amendment — 2026-11-24: the embedding identity carries its revision
+
+[ADR 0014](0014-reindex-builds-beside-the-serving-index.md) names every collection
+`chunks__<provider>__<model>__<dims>__<revision>`, because two pinned revisions of one model produce
+vectors that are not comparable ([ADR 0002](0002-tenant-partitioned-hybrid-retrieval-without-sparse-vectors.md),
+amended the same day). That left this ADR's `EmbeddingIdentity` — documented as "provider, model,
+dims" — narrower than the thing the rest of the system keys on, so the type and the registry were
+brought up to it:
+
+- **`EmbeddingIdentity` is `(provider, model, dims, revision)`**, and `EmbeddingProvider.identity`
+  carries all four. A provider whose revision is unknown cannot be constructed, which is the same
+  fail-closed posture as a missing `price_key`.
+- **`EMBEDDING_MODELS` is keyed on that whole tuple** rather than `(provider, model, dims)`, so a
+  revision this deployment has no facts for is a startup failure instead of a silent guess. It is the
+  only registry whose key includes the revision, and the asymmetry with `CHAT_MODELS` is deliberate: a
+  chat model's revision changes what it says, while an embedding model's revision changes which
+  collection its vectors may live in and whether two vectors may be compared at all.
+- **`EMBEDDING_REVISION` joins the configuration block**, because "complete at boot" has to include
+  the component that decides a collection's name.
+
+A consequence worth stating plainly: bumping `EMBEDDING_REVISION` is no longer a restart over the same
+index. It is a new collection, a reindex run and an alias flip ([ADR 0014](0014-reindex-builds-beside-the-serving-index.md)),
+and the runbook is written that way. Nothing else in this ADR moves — the same three seams, the same
+bounded retries, no cross-provider failover.
