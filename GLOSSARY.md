@@ -102,6 +102,14 @@ _Avoid_: embedding model, vector space key
 The code-level table of what a known model is: its context window, output ceiling, thinking default, structured-output mode, price key and the revision last observed. Consulted instead of guessed at call sites, and holding no prices and no selections.
 _Avoid_: model catalogue, provider config, model list
 
+**Prompt version**:
+The identifier of the instruction contract an Answer was generated under, recorded on the Answer so that answers written under different instructions stay distinguishable and comparable.
+_Avoid_: prompt id, template version, system prompt
+
+**Rewrite version**:
+The identifier of the instruction contract a Standalone query was produced under, recorded apart from the Answer's Prompt version, so that a change in how follow-ups are resolved is distinguishable from a change in how answers are written.
+_Avoid_: prompt version, query version
+
 ### Ingestion
 
 **Ingestion**:
@@ -134,6 +142,25 @@ _Avoid_: cleanup cron, janitor, garbage collector
 An ordered sequence of Answers owned by one Account, and the thing a person resumes when they come back to a question. It holds no derived state of its own: confidence belongs to an Answer, and anything carried from one Answer to the next is a prompt-time concern, not a property of the Conversation.
 _Avoid_: thread, chat, session
 
+**Conversation memory**:
+What carries from one Answer to the next inside a Conversation: the recent exchanges themselves, and the sources the earlier Answers cited. It exists only while a question is being answered — nothing about it is stored as a property of the Conversation, and it never crosses into another Conversation.
+_Avoid_: context, chat history, memory store, session state
+
+**History window**:
+The most recent exchanges of a Conversation, verbatim, that a follow-up is answered in the context of. Bounded and deliberately small; an Interrupted answer is not part of it, because it has no sources and no verified text to build on.
+_Avoid_: transcript, full history, context window
+
+**Standalone query**:
+The question a follow-up is turned into before anything is retrieved: self-contained, with its pronouns and ellipses resolved from the History window, so that retrieval is never run on text whose subject is missing. It is not the question the person asked, and it is never shown as one.
+_Avoid_: rewritten question, expanded query, search query
+
+**Query rewrite**:
+The act of turning a question into a Standalone query. A follow-up always gets one; a first question does not, because there is nothing to resolve it against.
+_Avoid_: query expansion, reformulation, query understanding
+
+**Carried chunk**:
+A chunk an earlier Answer in the same Conversation cited, re-admitted to this Answer's Evidence set because the follow-up may still be about it. A carried chunk is not re-retrieved and ranking cannot displace it; if its source is gone, it is dropped and the follow-up is simply a miss.
+_Avoid_: pinned chunk, inherited source, previous document
 ### Answers and verification
 
 **Answer**:
@@ -149,7 +176,7 @@ An Answer whose Citation verification did not run, so it carries no Confidence b
 _Avoid_: low confidence, unchecked answer
 
 **Evidence set**:
-The chunks an answer was retrieved against, and the only chunks its citations may point at. A citation to anything outside it is invalid.
+The chunks an answer was answered against — retrieved for it, or carried from an earlier Answer in the same Conversation — and the only chunks its citations may point at. A citation to anything outside it is invalid. Every member is either retrieved or carried, and says which.
 _Avoid_: context, window, retrieved documents
 
 **Claim**:
