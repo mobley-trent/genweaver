@@ -17,6 +17,13 @@ services:
   caddy:
     image: caddy:2.10-alpine
     restart: unless-stopped
+    # Anchors do not cross Compose files, so this mirrors the x-logging block
+    # in compose.yaml: 10 MB × 3 per container.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       api:
         condition: service_started

@@ -45,12 +45,21 @@ x-app-volumes: &app-volumes
   - ./data/uploads:/data/uploads
   - hf_home:/models
 
+# Docker's json-file driver caps each container's log on disk: 10 MB × 3 per
+# container, which is what the runbook and ADR 0012 promise.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   # ── state ───────────────────────────────────────────────────────────────
 
   postgres:
     image: postgres:18.7-trixie
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: genweaver
       POSTGRES_USER: genweaver
@@ -77,6 +86,7 @@ services:
   qdrant:
     image: qdrant/qdrant:v1.20.2
     restart: unless-stopped
+    logging: *default-logging
     environment:
       QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?set QDRANT_API_KEY in .env}
       QDRANT__TELEMETRY_DISABLED: "true"
@@ -88,6 +98,7 @@ services:
   tei:
     image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
     restart: unless-stopped
+    logging: *default-logging
     command:
       - --model-id
       - ${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
@@ -104,6 +115,7 @@ services:
       <<: *app-build
       target: api
     restart: "no"
+    logging: *default-logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -129,6 +141,7 @@ services:
       <<: *app-build
       target: api
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -186,6 +199,7 @@ services:
       <<: *app-build
       target: worker
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       migrate:
         condition: service_completed_successfully
