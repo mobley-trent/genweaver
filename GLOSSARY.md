@@ -132,6 +132,10 @@ _Avoid_: inactive chunk, partial chunk, pending chunk
 A chunk whose document finished ingesting; the only chunks retrieval may return.
 _Avoid_: indexed chunk, live chunk, published chunk
 
+**Indexing generation**:
+The set of chunks one Ingestion of a document produced under one Chunker version and one Chunk config hash, and the only set that document's own counts describe. A chunker change writes a new generation beside the old one rather than overwriting it, which is what lets a Stale chunk be told apart from a current one; whether an older generation is still served while a reindex is pending is its own question.
+_Avoid_: batch, pass, indexing version
+
 **Maintenance sweep**:
 The periodic pass that purges staged chunks of failed or deleted documents and fails documents whose job was lost.
 _Avoid_: cleanup cron, janitor, garbage collector
@@ -191,6 +195,10 @@ _Avoid_: reference, source, footnote
 **Citation verification**:
 The check that a citation's quote is really in the cited chunk and that the chunk supports the claim. Retrieval says a chunk may be relevant; verification says it supports what was said.
 _Avoid_: citation checking, fact-checking, grounding
+
+**Verification run**:
+One attempt to verify every Claim of an Answer under one verifier and one set of thresholds. Verdicts belong to a run rather than to the Citation, so re-deriving after a threshold change adds a run instead of rewriting what the Answer actually shipped with; the newest complete run is the one the Answer shows, and an Answer with no complete run is unverified rather than failed.
+_Avoid_: verification pass, re-check, verdict batch
 
 **Verified citation**:
 A citation whose quote was located in the cited chunk and whose claim that chunk is scored as supporting.

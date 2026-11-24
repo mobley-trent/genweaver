@@ -38,3 +38,5 @@ The deciding constraint is the one the whole project is built on: `clone → env
 - With no email delivery, "verified account" is not a state this system has, and nothing in the product may imply it.
 
 See [`docs/research/auth-options.md`](../research/auth-options.md) for the comparison and sources this rests on.
+
+**Naming amendment (2026-11-24).** The table this ADR calls `users` is `accounts`, and `owner_id` on every tenant-scoped table references it. **Account** is the glossary's term and the only identity this system has; the decision above is unchanged. [ADR 0011](./0011-postgres-is-the-source-of-truth-and-history-is-a-snapshot.md) carries the schema.
