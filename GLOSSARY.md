@@ -165,3 +165,29 @@ _Avoid_: score, percentage, confidence level
 **Insufficient support state**:
 An answer whose claims none of its cited sources support, or which had no evidence set to draw on. A state of the answer, distinct from a low confidence band, because it says nothing was supported rather than little.
 _Avoid_: low confidence, no answer, refusal
+
+### Evaluation
+
+**Gold source**:
+The span of a named document that a question's answer may legitimately rest on, labelled by a person before the system is run, and addressed as a document, a PDF page ordinal and a quote rather than by any identifier the index happens to give it.
+_Avoid_: ground truth chunk, reference passage, expected source
+
+**Gold chunk set**:
+The chunks of the index currently in force that contain a question's gold sources, resolved at run time rather than stored, so that a reindex changes which chunks answer a question without changing the question's labels.
+_Avoid_: expected chunks, target ids
+
+**Gold fact**:
+One atomic assertion that an answerable question's correct answer is expected to make, labelled individually so an answer can be scored on which facts it stated and which it invented.
+_Avoid_: expected answer, reference answer
+
+**Eval arm**:
+One named pipeline configuration under comparison by the eval harness — the baseline, a control, or an ablation of a single knob.
+_Avoid_: variant, experiment, configuration
+
+**Eval run**:
+One evaluation of one eval arm against one dataset version in one mode, reported as a single record identified by the configuration it ran under.
+_Avoid_: benchmark, test run
+
+**Baseline**:
+The committed metrics an eval run is compared against, carrying the spread measured for each metric and the tolerance it is gated with, and changed only as a reviewed diff.
+_Avoid_: golden file, snapshot, reference run
