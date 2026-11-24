@@ -4,6 +4,24 @@ A local-first, invite-gated RAG assistant over user-supplied PDFs. This is the u
 
 ## Language
 
+### Identity and access
+
+**Account**:
+The identity a person signs in with, and the thing an Invite brings into existence. Every Account is exactly one Tenant, and the Account's id is that Tenant's id; no two Accounts share one.
+_Avoid_: user, login, profile
+
+**Invite**:
+The single-use, expiring grant that is the only way a new Account comes to exist. It names the address it is intended for, but that address proves nothing: with no mail delivery, an Admin hands the Invite over themselves.
+_Avoid_: invite code, signup link, invite token
+
+**Role**:
+An Account's standing in the deployment: `admin`, which may issue and revoke Invites, terminate Sessions and re-issue credentials, or `member`, which may not.
+_Avoid_: permission, scope, group
+
+**Session**:
+One signed-in browser's authority to act as an Account, held server-side and revocable at any moment. A Session ends by logout, by idleness, by age, or by an Admin.
+_Avoid_: token, cookie, login, JWT
+
 ### Documents and retrieval units
 
 **Chunk**:
@@ -39,8 +57,8 @@ _Avoid_: extracted text, plain text, source text
 ### Retrieval
 
 **Tenant**:
-The account whose documents a single query may see. One user is one tenant; no answer may draw on another tenant's documents.
-_Avoid_: workspace, organization, account
+The Account whose documents a single query may see. One Account is one Tenant; no answer may draw on another Tenant's documents.
+_Avoid_: workspace, organization, profile
 
 **Dense branch**:
 The retrieval branch that ranks chunks by embedding similarity.
