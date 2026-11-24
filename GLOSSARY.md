@@ -161,6 +161,7 @@ _Avoid_: query expansion, reformulation, query understanding
 **Carried chunk**:
 A chunk an earlier Answer in the same Conversation cited, re-admitted to this Answer's Evidence set because the follow-up may still be about it. A carried chunk is not re-retrieved and ranking cannot displace it; if its source is gone, it is dropped and the follow-up is simply a miss.
 _Avoid_: pinned chunk, inherited source, previous document
+
 ### Answers and verification
 
 **Answer**:
