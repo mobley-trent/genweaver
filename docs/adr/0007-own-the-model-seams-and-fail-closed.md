@@ -108,6 +108,8 @@ exactly the case that needs it.
 | Embedding call fails | Surfaces to the ingestion job, whose own retry policy (#5: 3 attempts, 30 s / 2 m / 8 m) owns recovery |
 | Deadlines | Chat request 120 s, first token 30 s, embedding call 60 s |
 
+**The numbers above are launch defaults, not findings.** Three attempts, the 1 s / 4 s jitter, the 30 s `Retry-After` ceiling and the 120 s / 30 s / 60 s deadlines were chosen by judgement at spec time: nothing has been measured, because there is no system yet to measure. They are provisional in exactly the sense [ADR 0006](0006-gate-determinism-exactly-and-generation-statistically.md) uses for HHEM's `0.70 / 0.50` and confidence's `0.85 / 0.55` — named constants with documented defaults, **not** per-call arguments and **not** per-deployment environment knobs, moved only by a reviewed diff that cites the measurement that moved them: a latency or error histogram from the observability the map defers, a run of the eval harness, or a recorded incident. A retry count raised because a test was flaky, or a deadline shortened because one call felt slow, is the change this paragraph forbids.
+
 There is deliberately no fallback to a second provider. An automatic switch would mean the answer's
 provenance names a model that may not be the one that produced it, and every eval arm would silently
 mix models at the moment a provider wobbles. A deployment that wants a different provider sets one
@@ -159,9 +161,8 @@ which mode, under which prompt, verified by which checkpoint.
   ADR 0006 absorb it, and the PR gate never calls the model.
 - Provenance now records a **prompt version**, which forces context assembly to define what a prompt
   version is and when it bumps. That is fog on the map, not a decision this ticket could make.
-- The registry's `known_revision` is maintained by hand, because providers roll versions under a
-  stable name. Noticing that a revision moved is an observability concern, added to the map's fog
-  rather than settled here.
+- The registry's `known_revision` is maintained by hand, because providers roll versions under a stable name. Noticing that a revision moved is an observability concern, added to the map's fog rather than settled here.
+- The retry budget, its backoff and the three deadlines have **no measurement behind them**. Until the observability fog produces latency and error distributions, a change to any of them is a change without evidence, and tuning one to make a local run pass is the failure mode the paragraph above names.
 
 See [`docs/research/provider-abstraction.md`](../research/provider-abstraction.md) for the request
 shapes, the provider comparison and the sources this rests on.
