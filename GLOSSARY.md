@@ -90,6 +90,18 @@ _Avoid_: config version, checksum
 A chunk produced under a chunker version or config hash that no longer matches the running configuration, and which a reindex must replace.
 _Avoid_: outdated chunk, orphan
 
+**Provider**:
+A named implementation of a model seam — chat, embeddings or the verifier — that a deployment selects by configuration. Two providers of one seam are interchangeable only when their model identities match; changing the provider is a change of provenance, not only of wiring.
+_Avoid_: backend, vendor, client
+
+**Embedding identity**:
+The provider, model and dimensions that together decide which collection a chunk belongs to and whether two vectors may be compared. It is recorded per chunk, so a changed identity shows up as a changed collection rather than as silently mismatched vectors.
+_Avoid_: embedding model, vector space key
+
+**Model registry**:
+The code-level table of what a known model is: its context window, output ceiling, thinking default, structured-output mode, price key and the revision last observed. Consulted instead of guessed at call sites, and holding no prices and no selections.
+_Avoid_: model catalogue, provider config, model list
+
 ### Ingestion
 
 **Ingestion**:
