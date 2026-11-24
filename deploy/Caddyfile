@@ -12,11 +12,13 @@
 {$DOMAIN} {
 	encode zstd gzip
 
-	# Transport-level ceiling for multipart uploads. The app enforces its own
-	# 25 MiB limit (UPLOAD_MAX_BYTES) and returns the typed error; this only
-	# stops an oversized body before FastAPI buffers it.
+	# Transport-level ceiling for multipart uploads, deliberately ABOVE the
+	# app's own 50 MiB limit (UPLOAD_MAX_BYTES, ADR 0009) so a body the app
+	# would accept is never refused here with an untyped 413: the app answers
+	# with its problem+json payload_too_large. This only stops a body far past
+	# the limit before FastAPI buffers it.
 	request_body {
-		max_size 32MB
+		max_size 55MB
 	}
 
 	reverse_proxy api:8000 {

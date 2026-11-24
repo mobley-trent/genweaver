@@ -164,7 +164,7 @@ services:
       <<: *app-env
       HF_HOME: /models
       UPLOADS_DIR: /data/uploads
-      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-26214400}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-52428800}
       CHAT_PROVIDER: ${CHAT_PROVIDER:-deepseek}
       CHAT_MODEL: ${CHAT_MODEL:-deepseek-flash}
       CHAT_BASE_URL: ${CHAT_BASE_URL:-https://api.deepseek.com}

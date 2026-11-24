@@ -104,7 +104,7 @@ stays published on loopback for direct inspection and never reaches the internet
 | `BUDGET_ACCOUNT_DAILY_SOFT_USD` | no | `1.00` | Soft daily warning threshold |
 | `BUDGET_DEPLOYMENT_MONTHLY_USD` | no | `50.00` | Hard deployment-wide ceiling |
 | `WORKER_CONCURRENCY` | no | `1` | Concurrent ingestions; 2 only on 16 GB |
-| `UPLOAD_MAX_BYTES` | no | `26214400` | App-side upload ceiling (25 MiB); proxy cap is 32 MB |
+| `UPLOAD_MAX_BYTES` | no | `52428800` | App-side upload ceiling (50 MiB, ADR 0009); Caddy's edge cap is 55 MB |
 | `API_PORT` | no | `8000` | Loopback port published by `api` |
 | `LOG_LEVEL` | no | `INFO` | `DEBUG` for a debugging session only |
 

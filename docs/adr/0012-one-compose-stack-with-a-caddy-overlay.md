@@ -228,3 +228,18 @@ the floor, and points there.
   ships no metrics surface to collide with it.
 - Nothing about account deactivation, reindex strategy or UI scope is decided here; they remain their
   own tickets, and this ADR only fixes the topology they must fit into.
+
+## Amendment — 2026-11-24: the upload ceiling
+
+The numbers above drifted. [ADR 0009](0009-serve-rest-with-sse-over-fetch.md) set the app's upload knob at
+50 MB (`MAX_UPLOAD_MB`), and this ADR recorded a 25 MiB app ceiling against a 32 MB proxy cap — so the
+deployment advertised a limit the API never agreed to, and, worse, the proxy would refuse a body between
+32 and 50 MB with an untyped 413 before the app could answer with its `payload_too_large` problem document.
+
+Corrected in the checked-in stack: `UPLOAD_MAX_BYTES` is **52428800** (50 MiB) in `.env.example`, in
+`compose.yaml`'s default and in the runbook's environment table; Caddy's edge cap is **55 MB**,
+deliberately *above* the app ceiling so the app owns the refusal and the proxy only stops a body far past
+it. The principle — the edge cap never binds before the application does — also appears in
+[ADR 0013](0013-serve-a-server-rendered-ui-with-one-stream-client.md), because the browser path is where a
+user meets it. Nothing else in this ADR changes, and the 50 MiB ceiling stays provisional until a real
+50-page-plus PDF is measured.
