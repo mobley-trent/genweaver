@@ -1,0 +1,36 @@
+# Developer overlay: source bind-mounted for --reload, datastores reachable from
+# the host for inspection (psql, the Qdrant dashboard, curl against TEI).
+#
+#   docker compose -f compose.yaml -f compose.dev.yaml up
+#
+# Not for a public host: Postgres, Qdrant and TEI are bound to loopback here,
+# and the api mounts the working tree.
+
+services:
+  api:
+    command:
+      - uvicorn
+      - app.main:app
+      - --host=0.0.0.0
+      - --port=8000
+      - --reload
+      - --proxy-headers
+      - --forwarded-allow-ips=*
+    volumes:
+      - .:/app
+
+  worker:
+    volumes:
+      - .:/app
+
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"
+
+  qdrant:
+    ports:
+      - "127.0.0.1:6333:6333"
+
+  tei:
+    ports:
+      - "127.0.0.1:8080:80"

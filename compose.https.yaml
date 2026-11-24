@@ -1,0 +1,37 @@
+# Public-deployment overlay: Caddy terminates TLS and is the only published
+# public port. Merged on top of compose.yaml:
+#
+#   docker compose -f compose.yaml -f compose.https.yaml up -d
+#
+# Requires DOMAIN and ACME_EMAIL in .env, DNS pointing at this host, and ports
+# 80 and 443 reachable. Caddy obtains and renews the certificate itself; its
+# state lives in the caddy_data volume and is not backed up (it is re-issuable).
+
+services:
+  api:
+    environment:
+      # The cookie's Origin check (ADR 0005) and CSRF Host comparison read this.
+      # https is what makes a __Host- Secure cookie usable off localhost.
+      APP_ORIGIN: https://${DOMAIN:?set DOMAIN in .env}
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in .env}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

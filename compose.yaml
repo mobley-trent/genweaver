@@ -1,0 +1,215 @@
+# genweaver — local-first deployment.
+#
+#   cp .env.example .env          # fill the required values, pin the two model revisions
+#   mkdir -p data/uploads data/backups
+#   docker compose up -d
+#   open http://localhost:8000
+#
+# Public deployment adds Caddy for TLS on top of this file:
+#
+#   docker compose -f compose.yaml -f compose.https.yaml up -d
+#
+# Developer overlay (source bind-mounted, uvicorn --reload):
+#
+#   docker compose -f compose.yaml -f compose.dev.yaml up
+#
+# The decision behind this file: docs/adr/0012-*.md
+# Operator procedures: docs/operations/runbook.md
+
+name: genweaver
+
+# Wiring every application container shares. Internal URLs are assembled here so
+# that .env never holds the same fact twice; user-supplied values come from .env.
+x-app-env: &app-env
+  DATABASE_URL: postgresql+asyncpg://genweaver:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/genweaver
+  QDRANT_URL: http://qdrant:6333
+  QDRANT_API_KEY: ${QDRANT_API_KEY:?set QDRANT_API_KEY in .env}
+  EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-tei}
+  EMBEDDING_MODEL: ${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+  EMBEDDING_DIMS: ${EMBEDDING_DIMS:-1024}
+  EMBEDDING_REVISION: ${EMBEDDING_REVISION:?pin EMBEDDING_REVISION to a model commit sha}
+  EMBEDDING_BASE_URL: http://tei/v1
+  APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8000}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  BUDGET_ACCOUNT_MONTHLY_USD: ${BUDGET_ACCOUNT_MONTHLY_USD:-5.00}
+  BUDGET_ACCOUNT_DAILY_SOFT_USD: ${BUDGET_ACCOUNT_DAILY_SOFT_USD:-1.00}
+  BUDGET_DEPLOYMENT_MONTHLY_USD: ${BUDGET_DEPLOYMENT_MONTHLY_USD:-50.00}
+
+# One Dockerfile, two final targets: api carries FastAPI + torch + HHEM,
+# worker carries Docling + procrastinate. Neither carries the other's model.
+x-app-build: &app-build
+  context: .
+  dockerfile: Dockerfile
+
+x-app-volumes: &app-volumes
+  - ./data/uploads:/data/uploads
+  - hf_home:/models
+
+services:
+  # ── state ───────────────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:18.7-trixie
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: genweaver
+      POSTGRES_USER: genweaver
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - max_connections=50
+    volumes:
+      # Postgres 18 keeps PGDATA at /var/lib/postgresql/18/docker and declares
+      # the volume one level up; mounting the old /data path makes it refuse to start.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U genweaver -d genweaver"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  qdrant:
+    image: qdrant/qdrant:v1.20.2
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?set QDRANT_API_KEY in .env}
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes:
+      - qdrant:/qdrant/storage
+    # No compose healthcheck: the api's /readyz is the single readiness oracle
+    # for Qdrant, TEI and the verifier (docs/adr/0012).
+
+  tei:
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9
+    restart: unless-stopped
+    command:
+      - --model-id
+      - ${EMBEDDING_MODEL:-Qwen/Qwen3-Embedding-0.6B}
+      - --revision
+      - ${EMBEDDING_REVISION:?pin EMBEDDING_REVISION to a model commit sha}
+    volumes:
+      # Model cache: ~1.2 GB, downloaded once, survives a rebuild.
+      - tei_cache:/data
+
+  # ── one-shot bootstrap ──────────────────────────────────────────────────
+
+  migrate:
+    build:
+      <<: *app-build
+      target: api
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+    command:
+      - sh
+      - -c
+      - >-
+        alembic upgrade head &&
+        procrastinate --app=app.queue schema --apply &&
+        python -m app.cli ensure-collection
+    environment:
+      <<: *app-env
+      HF_HOME: /models
+    volumes:
+      - hf_home:/models
+
+  # ── application ─────────────────────────────────────────────────────────
+
+  api:
+    build:
+      <<: *app-build
+      target: api
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      tei:
+        condition: service_started
+    command:
+      - uvicorn
+      - app.main:app
+      - --host=0.0.0.0
+      - --port=8000
+      # Only Caddy and this host's loopback can reach the port; trust the
+      # forwarded headers so login backoff sees the real client address.
+      - --proxy-headers
+      - --forwarded-allow-ips=*
+    environment:
+      <<: *app-env
+      HF_HOME: /models
+      UPLOADS_DIR: /data/uploads
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-26214400}
+      CHAT_PROVIDER: ${CHAT_PROVIDER:-deepseek}
+      CHAT_MODEL: ${CHAT_MODEL:-deepseek-flash}
+      CHAT_BASE_URL: ${CHAT_BASE_URL:-https://api.deepseek.com}
+      CHAT_API_KEY: ${CHAT_API_KEY:?set CHAT_API_KEY in .env}
+      CHAT_THINKING: ${CHAT_THINKING:-off}
+      CHAT_TEMPERATURE: ${CHAT_TEMPERATURE:-0.2}
+      VERIFIER_MODEL: ${VERIFIER_MODEL:-hhem-2.1-open}
+      VERIFIER_REVISION: ${VERIFIER_REVISION:?pin VERIFIER_REVISION to a checkpoint revision}
+    volumes: *app-volumes
+    ports:
+      # Loopback only, in both the local and the HTTPS deployment: the public
+      # path is always Caddy. Kept published so an operator can curl the app.
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    healthcheck:
+      # Readiness includes a warmed verifier and reachable Postgres, Qdrant and
+      # TEI; liveness (/healthz) is deliberately not what Compose gates on.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import sys, urllib.request
+          with urllib.request.urlopen("http://127.0.0.1:8000/readyz", timeout=3) as r:
+              sys.exit(0 if r.status == 200 else 1)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 180s
+
+  worker:
+    build:
+      <<: *app-build
+      target: worker
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      tei:
+        condition: service_started
+    # Exactly one worker instance: it defers the hourly maintenance sweep from
+    # the periodic registry, and it bounds the parse memory spike.
+    command:
+      - procrastinate
+      - --app=app.queue
+      - worker
+      - --concurrency=${WORKER_CONCURRENCY:-1}
+    environment:
+      <<: *app-env
+      HF_HOME: /models
+      UPLOADS_DIR: /data/uploads
+    volumes: *app-volumes
+
+volumes:
+  pgdata:
+  qdrant:
+  tei_cache:
+  hf_home:

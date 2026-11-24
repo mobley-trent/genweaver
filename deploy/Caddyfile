@@ -1,0 +1,29 @@
+# genweaver — public entry point (used only by compose.https.yaml).
+#
+# One site, one upstream: the API serves both the REST surface at /api/v1 and
+# whatever UI build ships inside the api image, so there is no second origin
+# and no CORS. TLS is obtained from Let's Encrypt automatically; HTTP is
+# redirected to HTTPS.
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$DOMAIN} {
+	encode zstd gzip
+
+	# Transport-level ceiling for multipart uploads. The app enforces its own
+	# 25 MiB limit (UPLOAD_MAX_BYTES) and returns the typed error; this only
+	# stops an oversized body before FastAPI buffers it.
+	request_body {
+		max_size 32MB
+	}
+
+	reverse_proxy api:8000 {
+		# Answers are text/event-stream (ADR 0009): buffer nothing, or the
+		# tokens arrive in one lump when the stream ends.
+		flush_interval -1
+	}
+
+	log
+}
