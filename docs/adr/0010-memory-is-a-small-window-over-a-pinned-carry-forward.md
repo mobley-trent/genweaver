@@ -21,6 +21,17 @@ the documents for a memory bug. Re-admission is therefore a correctness requirem
 optimisation, which is why the three mechanisms the ticket offered — window, summary, retrieval — only
 ever differed in *what the generator additionally sees*. That choice was made: it is the window.
 
+**The rewrite has a deadline of 5 seconds, and the deadline belongs to the step, not the attempt.**
+`REWRITE_DEADLINE_SECONDS = 5` is a launch default in exactly the sense
+[ADR 0007](./0007-own-the-model-seams-and-fail-closed.md) records its chat deadlines: a named constant
+with a documented default, neither a per-call argument nor a deployment knob, moved only by a reviewed
+diff naming the measurement that moved it. It bounds the **whole rewrite step**: ADR 0007's retry policy
+is not repealed, but a step that has spent its allowance falls through to the raw Question and the
+pinned tier as `failed_fallback` rather than starting another attempt, because this call sits *before*
+retrieval and its delay is wholly additive to time-to-first-token. Five seconds is judgement, not
+measurement — a 200-token non-thinking call should answer in a fraction of it, and one slower than that
+costs the person more than a resolved Standalone query is worth.
+
 **The tier is pinned because a guarantee that depends on rank is not a guarantee.** Fusion is ordinal
 ([ADR 0002](./0002-tenant-partitioned-hybrid-retrieval-without-sparse-vectors.md)): a prefetch branch
 of carried chunks competes with two retrieved branches, and RRF arithmetic can push a chunk into 21st
@@ -110,7 +121,8 @@ because memory was never anywhere else.
 - **Fog cleared**: context assembly and prompt packing is now specifiable and has its own ticket; the
   fog that remains is the reranker's token budget, the copy for a miss, observability, and non-PDF
   ingestion.
-- **Unmeasured**: no window size, no tier cap and no rewrite ceiling here has a measurement behind it.
-  Two thousand tokens, four exchanges, six carried chunks and a 200-token rewrite are launch defaults,
-  moved by a reviewed diff citing multi-turn eval results — the rule
+- **Unmeasured**: no window size, no tier cap, no rewrite ceiling and no rewrite deadline here has a
+  measurement behind it. Two thousand tokens, four exchanges, six carried chunks, a 200-token rewrite
+  and `REWRITE_DEADLINE_SECONDS = 5` are launch defaults, moved by a reviewed diff citing multi-turn
+  eval results or a latency histogram — the rule
   [ADR 0007](./0007-own-the-model-seams-and-fail-closed.md) applies to its provisional numbers.

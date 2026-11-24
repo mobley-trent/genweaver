@@ -118,6 +118,8 @@ its own allowance so that a single long answer cannot push the optional window o
   unobserved; `prompt_cache_hit_tokens` will say.
 - **The rewrite call's latency** is unmeasured. It sits in front of retrieval, so it is squarely on the
   time-to-first-token path; a slow `deepseek-flash` turn makes every follow-up slow before it begins.
+  That is why its deadline — `REWRITE_DEADLINE_SECONDS = 5`, bounding the whole step rather than one
+  attempt (ADR 0010) — is a judgement and not a measured ceiling.
 - **The carry cap of six** is a guess at how many chunks a follow-up plausibly still rests on.
 - **`deepseek-flash`'s willingness to resolve a pronoun from a four-exchange window** is untested; the
   nightly rewrite-fidelity arm is the instrument, and it does not exist yet.
