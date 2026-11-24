@@ -203,3 +203,37 @@ _Avoid_: benchmark, test run
 **Baseline**:
 The committed metrics an eval run is compared against, carrying the spread measured for each metric and the tolerance it is gated with, and changed only as a reviewed diff.
 _Avoid_: golden file, snapshot, reference run
+
+### Cost and budget
+
+**Usage row**:
+One immutable record of one provider call attempt — the tokens the provider reported, or that we estimated when it reported none, and the money they cost — linked to the Answer, ingestion or eval run that caused it. Retries, failures and aborted streams are rows too, because the provider billed them.
+_Avoid_: billing event, log entry, usage record
+
+**Price key**:
+The label a model's registry entry carries to name which rates price its calls. A model carries a price key; it never carries a price.
+_Avoid_: price id, model id, rate name
+
+**Rate card**:
+The checked-in table of per-million-token rates by price key, each block naming an effective date and separate cache-hit, cache-miss and output rates for peak and off-peak. Loaded at boot, and holding no models and no selections.
+_Avoid_: price table, tariff, price list
+
+**Price version**:
+The identifier of the rate card state that priced a usage row, written on the row so that a later rate change never re-prices an answer already given.
+_Avoid_: price date, table version
+
+**Peak window**:
+The times a provider charges its higher rate — for DeepSeek, 01:00–04:00 and 06:00–10:00 UTC Monday to Friday, with every other hour off-peak. Recorded as data in the rate card, so each call is priced by when it was made.
+_Avoid_: busy hours, surge pricing
+
+**Budget**:
+A spending ceiling in US dollars over a window, held either per Account (monthly, hard; daily, soft) or deployment-wide (monthly, hard). A hard budget refuses admission; a soft one only warns.
+_Avoid_: quota, limit, allowance
+
+**Admission check**:
+The pre-flight test that prices an answer's upper bound against what remains of its Account's and the deployment's budgets, before any provider call is made. It admits or refuses; it never stands in for the usage rows that record what was actually spent.
+_Avoid_: quota check, pre-flight, throttle
+
+**Usage scope**:
+Whether a usage row was caused by product traffic or by the eval harness. Eval rows spend the same key and live in the same ledger, but count toward no Account's or deployment's budget.
+_Avoid_: category, source
