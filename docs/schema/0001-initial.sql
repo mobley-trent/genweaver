@@ -2,7 +2,7 @@
 --
 -- The specification for [Specify the Postgres data model](../../docs/adr/0011-postgres-is-the-source-of-truth-and-history-is-a-snapshot.md).
 -- This file is the source for Alembic migration `0001_initial`. It parses under
--- libpg_query (Postgres's own grammar): 40 statements, 17 tables, 23 indexes.
+-- libpg_query (Postgres's own grammar): 43 statements, 19 tables, 24 indexes.
 -- It has never been executed against a server — syntax is not behaviour.
 --
 -- Requires PostgreSQL >= 18 for `uuidv7()`.
@@ -142,6 +142,9 @@ create table document_content (
   document_id        uuid primary key references documents(id) on delete cascade,
   content_hash       bytea not null check (octet_length(content_hash) = 32),
   canonical_markdown text not null,
+  -- The parser's own document tree, so a re-chunk needs neither the PDF nor a
+  -- layout pass (ADR 0014). Page images are not retained: figures are caption-only.
+  parsed_json        jsonb not null,
   parser_name        text not null,
   parser_version     text not null,
   parsed_at          timestamptz not null default now()
@@ -179,6 +182,48 @@ create table chunks (
 -- it, so the per-document count, the activation cross-check and the sweep have one.
 -- (Chunks carry no owner_id: every read joins `documents`, which is where the
 -- tenant check happens.)
+
+-- ─── reindex runs ──────────────────────────────────────────────────────
+
+-- One rebuild ([ADR 0014](../../docs/adr/0014-reindex-builds-beside-the-serving-index.md)): the
+-- generation it produces and the generation it expects to replace. Progress is derived
+-- from `reindex_run_documents`, never counted here, so a resumed run and a status read
+-- cannot disagree about it.
+create table reindex_runs (
+  id                       uuid primary key default uuidv7(),
+  state                    text not null default 'building'
+                           check (state in ('building', 'verifying', 'switched', 'failed')),
+  -- A run is a shadow build when `target_collection` differs from `source_collection`
+  -- (or from the alias's target, when `source_collection` is null); nothing stores that.
+  -- Provider, model, dimensions and revision are read off these two names, which are
+  -- built to carry them. A chunker version is not in any name, so it is held here —
+  -- and `source_chunker_version` is what tells a rollback whether re-chunking happened.
+  target_collection        text not null,
+  target_chunker_version   text not null,
+  -- The generation being replaced. Null only when the serving collection was empty,
+  -- which is a fresh deployment and a restored one alike.
+  source_collection        text,
+  source_chunker_version   text,
+  failure_code             text check (failure_code in ('document_failed', 'count_mismatch')),
+  started_at               timestamptz not null default now(),
+  finished_at              timestamptz
+);
+-- At most one run in flight: the alias can be mid-flip only once, and a second run
+-- would rebuild documents the first still intends to publish.
+create unique index reindex_runs_one_open on reindex_runs ((state in ('building', 'verifying')))
+  where state in ('building', 'verifying');
+
+-- The set a run intends to rebuild, fixed when it opens, so `--resume` re-enqueues
+-- only its own unfinished work. A deleted document cascades out, its job no-ops, and its
+-- points are purged from the run's target as well as from the serving collection.
+create table reindex_run_documents (
+  run_id       uuid not null references reindex_runs(id) on delete cascade,
+  document_id  uuid not null references documents(id) on delete cascade,
+  state        text not null default 'pending' check (state in ('pending', 'done', 'failed')),
+  error_code   text,                            -- documents.error_code vocabulary, on failure
+  completed_at timestamptz,
+  primary key (run_id, document_id)
+);
 
 -- ─── conversations and answers ─────────────────────────────────────────
 
@@ -395,6 +440,10 @@ create index model_calls_subject on model_calls (subject_kind, subject_id);
 --      the Qdrant point id.
 --   4. The four embedding columns on a chunk equal the document's current
 --      indexing generation and name the collection the vector was written to.
+--      "Current" is per document: the generation its vectors were last fully
+--      written under. All of a document's rows move in one transaction, after
+--      its target points are active and counted, so a library mid-reindex is
+--      mixed per document and never per row (ADR 0011's amendment).
 --   5. model_calls.owner_id is not null whenever scope = 'product' — except
 --      after the Account is deleted, which is what `on delete set null` is for.
 --

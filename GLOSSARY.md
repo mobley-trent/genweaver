@@ -95,8 +95,16 @@ A named implementation of a model seam — chat, embeddings or the verifier — 
 _Avoid_: backend, vendor, client
 
 **Embedding identity**:
-The provider, model and dimensions that together decide which collection a chunk belongs to and whether two vectors may be compared. It is recorded per chunk, so a changed identity shows up as a changed collection rather than as silently mismatched vectors.
+The provider, model, dimensions and pinned revision that together decide which collection a chunk belongs to and whether two vectors may be compared. It is recorded per chunk, so a changed identity shows up as a changed collection rather than as silently mismatched vectors — two revisions of one model are two vector spaces.
 _Avoid_: embedding model, vector space key
+
+**Serving index**:
+The collection the retrieval alias currently points at: the vectors an answer is actually drawn from. A rebuild fills a collection that is not the serving index until it publishes it, and a rollback moves the alias back to the collection the run superseded.
+_Avoid_: live collection, current index, active collection
+
+**Reindex run**:
+One attempt to rebuild a set of documents into a target indexing generation — the generation it produces, the documents it intends to rebuild (fixed when it opens), and whether it publishes by moving the serving index or by replacing each document's generation in place.
+_Avoid_: reindex job, migration, rebuild task
 
 **Model registry**:
 The code-level table of what a known model is: its context window, output ceiling, thinking default, structured-output mode, price key and the revision last observed. Consulted instead of guessed at call sites, and holding no prices and no selections.
@@ -133,7 +141,7 @@ A chunk whose document finished ingesting; the only chunks retrieval may return.
 _Avoid_: indexed chunk, live chunk, published chunk
 
 **Indexing generation**:
-The set of chunks one Ingestion of a document produced under one Chunker version and one Chunk config hash, and the only set that document's own counts describe. A chunker change writes a new generation beside the old one rather than overwriting it, which is what lets a Stale chunk be told apart from a current one; whether an older generation is still served while a reindex is pending is its own question.
+The set of chunks one Ingestion of a document produced under one Chunker version and one Chunk config hash, and the only set that document's own counts describe. A chunker change writes a new generation beside the old one rather than overwriting it, which is what lets a Stale chunk be told apart from a current one. An older generation keeps being served only until its own document's replacement is published, so a library mid-reindex is mixed per document, never per chunk.
 _Avoid_: batch, pass, indexing version
 
 **Maintenance sweep**:

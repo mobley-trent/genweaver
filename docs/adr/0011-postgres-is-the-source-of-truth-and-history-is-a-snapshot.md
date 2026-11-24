@@ -49,7 +49,7 @@ Three facts from those decisions turned out to determine most of the shape.
 
 ## Consequences
 
-- **One write path per artifact, and very little updating.** Answers are inserted at completion; claims, citations, evidence and verdicts are insert-only; `model_calls` is append-only. The only UPDATEs in the schema are a document's ingestion progress, a session's `last_seen_at`, an answer's confidence columns once verification resolves, and an admission settling.
+- **One write path per artifact, and very little updating.** Answers are inserted at completion; claims, citations, evidence and verdicts are insert-only; `model_calls` is append-only. The only UPDATEs in the schema are a document's ingestion progress, a session's `last_seen_at`, an answer's confidence columns once verification resolves, and an admission settling — plus the reindex's per-document generation rewrite, which is the amendment below.
 - **Deleting an Account is an unrecoverable purge.** Its documents, chunks, conversations, answers, claims, citations, evidence and verdicts all go. Whether the product offers that or only a disable flag is the deactivation ticket's decision; the schema expresses both, and the second needs one nullable column.
 - **A citation can point at a chunk that no longer exists.** That is the price of history surviving deletion: verification fails closed, rendering uses the snapshot, and a carried chunk whose row is gone is silently dropped.
 - **An in-flight Answer that a process crash interrupts leaves nothing behind** but its usage rows. There is no resumable generation, by design — the alternative is a streaming status and half-answered rows.
@@ -67,3 +67,53 @@ A review pass over the schema removed seven indexes and six columns and fixed tw
 - **`citation_verdicts` lost its copy of the matched span**, and `answers` lost `band_cut_points`. Both were second stores of a value that already exists one row away — the citation's located offsets, and `confidence_params`' cut points — and a second store can only diverge.
 
 Also removed: `sessions.ip` and `user_agent` (no reader, and personal data with no retention rule attached), `accounts.updated_at` (no writer), and seven indexes that either duplicated another index's leading columns or served no query the map defines. `answers_band_shape` was relaxed so `insufficient_support` may have no base, because an empty evidence set makes the support share 0/0 and the alternative was inventing a zero.
+
+## Amendment — 2026-11-24: what "current generation" means during a reindex
+
+Rule 4 of the schema's comment list says a chunk's four embedding columns "equal the document's
+current indexing generation and name the collection the vector was written to".
+[ADR 0014](./0014-reindex-builds-beside-the-serving-index.md) rewrites those columns per document
+while a run is in flight, so "current" needs a meaning that survives a library which is deliberately
+mixed — and that meaning was never written down, because until a reindex existed no two generations
+could be live at once.
+
+**"Current" is per document, and it is the generation the document's vectors were last *fully*
+written under.** It is not "the generation the alias resolves to". Four properties follow, and they
+are what the write path asserts:
+
+- **A document's rows move together, once.** Its four columns and every one of its chunks' move in the
+  same transaction, and only after that document's target points are all active and counted. There is
+  no instant at which a document's row names a generation with a half-written vector set, and none at
+  which a chunk and its document disagree.
+- **Until that transaction commits, the rows describe the vector retrieval is using.** In a shadow run
+  the target already holds the new vectors while the row still names the source collection — the
+  collection an answer is actually reading — so the columns are never a claim about a collection
+  nothing reads.
+- **Across the library the columns differ, document by document**, exactly as ADR 0014 says. Code that
+  needs "what is being served" asks the alias; code that needs "which generation this document belongs
+  to" reads the columns. They answer different questions, and no query may stand one in for the
+  other — which is also why the readiness gate reads `documents.status`, not these columns.
+- **A completed run's columns are ahead of the alias until the flip.** In the `verifying` window every
+  document has moved and no query has: that is a run-level fact, held by the open `reindex_runs` row
+  and its `state`, not by any column.
+
+### The enumerated UPDATEs gain a fifth entry
+
+The "very little updating" consequence above lists four UPDATE paths. A reindex adds a fifth, and it
+is the only one that writes many rows at a time:
+
+- **A reindex rewrites one document's generation, per document, in one transaction.** For an
+  embed-only run that is the four embedding columns on the document and on all of that document's
+  chunk rows. For a re-chunk it adds `chunker_version`, `chunk_config_hash` and `chunks_total` on the
+  document, and the new generation's chunks are *inserts* under new uuid5 ids, never updates — which
+  is the coexist-as-generations rule above doing its job. Scope is one document, so the transaction
+  has a bound and a corpus-wide figure never appears in a single statement: a run moves documents one
+  at a time and each is independently correct.
+
+A rollback (`reindex rollback`, ADR 0014) is the same statement in reverse, from the source generation
+the run recorded — still one document at a time, and only while the superseded collection exists.
+
+The schema's rule 4 comment now carries the short form of this definition, so the spec and this
+amendment say the same thing. Nothing else in this ADR moves: answers, citations, evidence and
+verdicts stay insert-only, and a reindex touches no history row, because what keeps a citation legible
+is its snapshot, not the chunk it once pointed at.

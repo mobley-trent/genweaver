@@ -32,3 +32,20 @@ Point ids are deterministic: `uuid5(document_id:chunker_version:chunk_index)`. R
 - A fused score is **ordinal, not a similarity**: adjacent RRF ranks carry no calibrated distance. Work on answer confidence must not read it as closeness to a source.
 - Prefetch depth (50), fused limit (20) and BM25 `k`/`b` are eval-swept knobs, not part of this decision.
 - The deployment requires **Qdrant ≥ 1.20**; hybrid retrieval adds no service to compose.
+
+## Amendment — 2026-11-24: the name gains a revision, and reads go through one alias
+
+[ADR 0014](0014-reindex-builds-beside-the-serving-index.md) refined the naming rule above by one
+component, because a rebuild has to publish a new collection without a window in which retrieval has
+nothing to read.
+
+- The collection is now named `chunks__<provider>__<model>__<dims>__<revision>`, slugs and all. Two
+  pinned revisions of one model produce vectors that are **not comparable**, so a revision is part of
+  what the name has to distinguish; the chunker version stays out of it, because a chunker bump
+  rebuilds the same collection in place.
+- Retrieval reads the alias `chunks_current` and never a physical name; writes name their collection
+  explicitly. A rebuild therefore fills a collection nobody reads and publishes it by repointing the
+  alias in one atomic `POST /collections/aliases` batch.
+
+Nothing else here moves: the payload, the tenant partition, the BM25 branch, the fusion, the filter
+builder and the readiness gate are unchanged.

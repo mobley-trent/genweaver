@@ -176,15 +176,17 @@ docker compose exec -T postgres pg_restore -U genweaver -d genweaver --clean --i
 tar -C data -xzf data/backups/uploads-$ts.tgz
 
 docker compose up -d           # migrate verifies the schema and ensures the collection
-docker compose run --rm api python -m app.cli reindex --all
+docker compose run --rm --entrypoint python worker -m app.cli reindex --all
 curl -fsS localhost:8000/readyz
 ```
 
 The last step is not optional: **Qdrant is empty after a restore**, so until the reindex runs the
-library is intact and every question answers `insufficient_support`. The reindex re-embeds chunk text
-from Postgres and needs no PDFs. Its exact name and flags belong to
-[Decide the reindexing and embedding-model migration strategy](https://github.com/mobley-trent/genweaver/issues/18);
-the restore path requires that it can rebuild every vector from Postgres alone.
+library is intact and every question answers `insufficient_support`. `--all` rebuilds every `ready`
+document regardless of the generation its row claims — the only detector that can be right when the
+vector store is empty — and it re-embeds chunk text from Postgres, needing no PDFs and no parsing.
+It runs in place, against the collection `chunks_current` already points at, and ingestion stays
+enabled throughout: the collection being rebuilt is the one being served, under the same identity.
+The procedure is the one in [Changing the embedding model](#changing-the-embedding-model-or-its-revision-a-reindex).
 
 Rehearse the restore once on a scratch host before you need it: a backup nobody has restored is a
 hypothesis.
@@ -207,15 +209,56 @@ pre-upgrade dump if the migration itself was wrong.
 **Restarts drop in-flight answers.** There is no drain and no resumable stream, so upgrade when nobody
 is mid-question. A crashed answer leaves its usage rows and no Answer row; the person asks again.
 
-### Changing the model or the embedding identity
+### Changing the chat model
 
-Chat model changes are a `.env` change and a restart (`CHAT_MODEL=…`, `docker compose up -d api`);
-provenance records the new model from the next answer on. An **embedding** change is not: the
-collection name is the embedding identity, so a new model means a new collection and a reindex of every
-document — that procedure, and whether the old generation is served meanwhile, is
-[Decide the reindexing and embedding-model migration strategy](https://github.com/mobley-trent/genweaver/issues/18).
-Raising `WORKER_CONCURRENCY` while a reindex runs is how a 16 GB host gets it done without stalling
-uploads; on 8 GB, expect ingestion to queue.
+`CHAT_MODEL=…` in `.env`, then `docker compose up -d api`. Provenance records the new model from the
+next answer on, and nothing is rebuilt: a chat model leaves no stored artifact. `CHAT_THINKING` and
+`CHAT_TEMPERATURE` are the same kind of change.
+
+### Changing the embedding model, or its revision: a reindex
+
+An embedding change is a migration, and it is the same operation the restore path needs
+([ADR 0014](../adr/0014-reindex-builds-beside-the-serving-index.md)). The shape: retrieval reads one
+alias, `chunks_current`; a run fills a collection nobody is reading and then repoints that alias in one
+atomic Qdrant call. Every command below runs in the **`worker`** image, because re-chunking needs
+Docling and the api image deliberately does not carry it
+([ADR 0012](../adr/0012-one-compose-stack-with-a-caddy-overlay.md)).
+
+```bash
+# 1. Change EMBEDDING_MODEL / EMBEDDING_DIMS / EMBEDDING_REVISION in .env and restart.
+#    Safe but not silent: with the alias on a collection built from another identity,
+#    ingestion pauses and uploads stay `queued`.
+docker compose up -d api worker
+docker compose logs worker --since 5m | grep index_behind_config   # expected, once per boot
+
+# 2. See what would be rebuilt, then open the run.
+docker compose run --rm --entrypoint python worker -m app.cli reindex --dry-run
+docker compose run --rm --entrypoint python worker -m app.cli reindex
+
+# 3. Watch it. Answers keep working throughout, on the old collection.
+docker compose run --rm --entrypoint python worker -m app.cli reindex status
+docker compose logs -f worker | grep reindex
+
+# 4. It flips itself when every document verifies. Then retire the old collection,
+#    or roll back to it while it still exists.
+docker compose run --rm --entrypoint python worker -m app.cli reindex retire <run-id>
+docker compose run --rm --entrypoint python worker -m app.cli reindex rollback <run-id>
+```
+
+- **A run is all-or-nothing.** One document that exhausts its retries fails the run and the alias does
+  not move; `reindex status` names the document and its error code. Retry or delete that document, then
+  `reindex --resume <run-id>`.
+- **Ingestion is paused for the length of a run**, because the deployment can only embed one model at a
+  time. Uploads keep their `queued` status and their poll keeps answering `Retry-After`; nothing fails.
+  A document left `ingesting` by the restart that changed the configuration is reset to `queued` when
+  the worker starts, so a paused queue never ages into `job_lost`. Answers are unaffected.
+- **The superseded collection is kept** until `reindex retire`, which is what makes rollback a
+  two-command operation — and also the disk cost of a migration, two collections at peak.
+- **A chunker-only change is the same command** and rebuilds in place, document by document: no alias
+  flip, no second collection, and no rollback, because each document's superseded generation is retired
+  as its replacement is published.
+- **`--all` is the restore path** (every `ready` document), and the only detector that works when
+  Qdrant is empty.
 
 A **Postgres major** upgrade (18 → 19) is dump-and-restore, not a tag change: the image's data layout
 is version-specific (`/var/lib/postgresql/18/docker`), and an in-place upgrade needs `pg_upgrade` on
@@ -247,8 +290,9 @@ docker compose logs api | grep budget            # refusals and soft-threshold w
 | Ingestions crawl, answers fine | `docker stats` | 2 vCPU is not enough for Docling; 4 is the floor |
 | Disk full | `docker system df`, `du -sh data/*` | Prune old images, check backup retention, then uploads |
 
-On 8 GB: keep one worker and one ingestion, avoid reindexing while people are asking. On 16 GB: set
-`WORKER_CONCURRENCY=2` and reindex alongside serving.
+On 8 GB: one worker and one ingestion. A reindex pauses ingestion by itself and is the heaviest
+sustained work the box does, so start one when nobody is waiting on an upload; serving continues. On
+16 GB: `WORKER_CONCURRENCY=2` roughly halves a rebuild's wall time.
 
 ## Troubleshooting
 
@@ -261,7 +305,9 @@ On 8 GB: keep one worker and one ingestion, avoid reindexing while people are as
 | Caddy cannot get a certificate | DNS not pointing here, port 80/443 closed, wrong `ACME_EMAIL` | `docker compose logs caddy`; fix DNS/firewall, restart caddy |
 | Signed out immediately on a remote host | Serving plain HTTP, so no `Secure` cookie | Use `compose.https.yaml` |
 | Signed out on localhost in one browser | That browser refuses `Secure` cookies on localhost | Use Chrome or Firefox locally, or the HTTPS overlay |
-| Every answer `insufficient_support` on a library that looks fine | Qdrant empty (fresh restore) or reindex not run | `python -m app.cli reindex --all` |
+| Every answer `insufficient_support` on a library that looks fine | Qdrant empty (fresh restore) or reindex not run | `docker compose run --rm --entrypoint python worker -m app.cli reindex --all` |
+| Uploads stay `queued` after changing `EMBEDDING_MODEL` or `EMBEDDING_REVISION` | The serving collection was built from another identity, so ingestion is paused | Run the reindex, or revert `.env` |
+| `reindex` refuses to open a run | A run is already in flight | `reindex status`, then `--resume <run-id>` |
 | `deployment_budget_exhausted` for everyone | Deployment ceiling reached | Raise `BUDGET_DEPLOYMENT_MONTHLY_USD` or wait for the month |
 | Login works, then 403 on writes | `APP_ORIGIN` disagrees with the browser origin | Set `APP_ORIGIN` to the exact origin, `docker compose up -d api` |
 | A document sits `failed` with `job_lost` | Worker died mid-ingestion; the sweep noticed | `POST /documents/{id}/retry`, or delete and re-upload |
