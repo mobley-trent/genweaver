@@ -135,3 +135,15 @@ _Avoid_: unsourced statement, bare claim
 **Unchecked claim**:
 A claim verification never ran on, because the verifier was unavailable or out of budget. Says nothing about whether the claim is supported.
 _Avoid_: unverified claim, unvalidated claim
+
+**Support share**:
+The share of an answer's claims that its own verified sources back — a verified claim counts fully, a partial one by half, a failed or uncited one not at all. It is what the product means by confidence, and it is not a probability that the answer is correct.
+_Avoid_: confidence score, certainty, probability, accuracy
+
+**Confidence band**:
+The three-way summary of a support share shown with an answer — high, medium or low — after the answer's ceiling gates have applied. A band is always accompanied by the claim counts behind it, never shown as a number.
+_Avoid_: score, percentage, confidence level
+
+**Insufficient support state**:
+An answer whose claims none of its cited sources support, or which had no evidence set to draw on. A state of the answer, distinct from a low confidence band, because it says nothing was supported rather than little.
+_Avoid_: low confidence, no answer, refusal
