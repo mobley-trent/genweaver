@@ -128,7 +128,25 @@ _Avoid_: indexed chunk, live chunk, published chunk
 The periodic pass that purges staged chunks of failed or deleted documents and fails documents whose job was lost.
 _Avoid_: cleanup cron, janitor, garbage collector
 
+### Conversations
+
+**Conversation**:
+An ordered sequence of Answers owned by one Account, and the thing a person resumes when they come back to a question. It holds no derived state of its own: confidence belongs to an Answer, and anything carried from one Answer to the next is a prompt-time concern, not a property of the Conversation.
+_Avoid_: thread, chat, session
+
 ### Answers and verification
+
+**Answer**:
+The persisted result of one question: the text as delivered, its Claims and Citations with their verdicts, its Evidence set, its Confidence band or state, its cost and its provenance. Streaming is how an Answer is delivered, never what an Answer is — a client that disconnects still leaves one behind.
+_Avoid_: response, completion, message, output
+
+**Interrupted answer**:
+An Answer whose provider stream broke after it had begun. It keeps the text that arrived, carries no Claims, no verdicts and no Confidence band, and the system never resumes or regenerates it on its own initiative.
+_Avoid_: partial answer, truncated answer, failed answer
+
+**Unverified answer**:
+An Answer whose Citation verification did not run, so it carries no Confidence band at all. Shown as "support not checked", never as a low band, because a verifier's silence says nothing about support.
+_Avoid_: low confidence, unchecked answer
 
 **Evidence set**:
 The chunks an answer was retrieved against, and the only chunks its citations may point at. A citation to anything outside it is invalid.
