@@ -107,8 +107,8 @@ create table documents (
   -- before any row exists, so the code has no producer; a file that passes the sniff
   -- and will not parse is `parse_failed`. This list is exactly #14's failure_code set.
   error_code         text check (error_code in ('encrypted', 'parse_failed',
-                       'chunk_failed', 'embed_failed', 'activation_failed',
-                       'page_limit_exceeded', 'job_lost')),
+                       'no_extractable_text', 'chunk_failed', 'embed_failed',
+                       'activation_failed', 'page_limit_exceeded', 'job_lost')),
   error_message      text,
   chunker_version    text,                      -- current indexing generation
   chunk_config_hash  text,
@@ -121,7 +121,12 @@ create table documents (
   created_at         timestamptz not null default now(),
   updated_at         timestamptz not null default now(),
   -- Content is identity: the same bytes re-uploaded in one Tenant is one document.
-  unique (owner_id, content_sha256)
+  unique (owner_id, content_sha256),
+  -- `ready` means retrievable. A document that produced no chunks — a scanned PDF with
+  -- no text layer — is a failed ingestion, not an empty success: published empty it
+  -- would pass the activation count vacuously and satisfy #14's `library_empty` guard
+  -- while contributing nothing, so a question would be bought against an empty library.
+  constraint documents_ready_has_chunks check (status <> 'ready' or chunks_total > 0)
 );
 create index documents_owner_recent on documents (owner_id, created_at desc, id desc);
 create index documents_owner_status on documents (owner_id, status);
