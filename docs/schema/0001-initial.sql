@@ -2,7 +2,7 @@
 --
 -- The specification for [Specify the Postgres data model](../../docs/adr/0011-postgres-is-the-source-of-truth-and-history-is-a-snapshot.md).
 -- This file is the source for Alembic migration `0001_initial`. It parses under
--- libpg_query (Postgres's own grammar): 39 statements, 17 tables, 22 indexes.
+-- libpg_query (Postgres's own grammar): 40 statements, 17 tables, 23 indexes.
 -- It has never been executed against a server — syntax is not behaviour.
 --
 -- Requires PostgreSQL >= 18 for `uuidv7()`.
@@ -119,6 +119,11 @@ create table documents (
 );
 create index documents_owner_recent on documents (owner_id, created_at desc, id desc);
 create index documents_owner_status on documents (owner_id, status);
+-- Global, not tenant-scoped: the maintenance sweep scans every document in
+-- failed/cancelled and every non-terminal document past the recovery threshold.
+-- Neither query can use the owner-led index above, because status is not its
+-- leading column; `updated_at` lives here so the threshold is not a second lookup.
+create index documents_status on documents (status, updated_at);
 
 -- The single serialization every offset and quote in the system refers to.
 -- Its own table so the polled status row above stays narrow.
