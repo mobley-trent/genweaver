@@ -140,7 +140,11 @@ create index documents_status on documents (status, updated_at);
 -- Its own table so the polled status row above stays narrow.
 create table document_content (
   document_id        uuid primary key references documents(id) on delete cascade,
-  content_hash       bytea not null check (octet_length(content_hash) = 32),
+  -- Hashes `canonical_markdown` and nothing else. `parsed_json` carries no hash of
+  -- its own: it is identified by the PDF's `documents.content_sha256` and by the
+  -- parser identity below, and one hash over two artifacts could not say which of
+  -- them changed.
+  markdown_sha256    bytea not null check (octet_length(markdown_sha256) = 32),
   canonical_markdown text not null,
   -- The parser's own document tree, so a re-chunk needs neither the PDF nor a
   -- layout pass (ADR 0014). Page images are not retained: figures are caption-only.
@@ -452,5 +456,12 @@ create index model_calls_subject on model_calls (subject_kind, subject_id);
 --   answer_requests  settled more than 24 h ago                  delete
 --   sessions         revoked or expired more than 30 days ago    delete
 --   login_attempts   last_failure_at older than 1 day            delete
+--   chunks           a superseded chunker generation, 30 days after    delete rows,
+--                    the document's current generation was           then their points,
+--                    activated — provisional, like the session        by document_id +
+--                    window above                                    chunker_version
 --   model_calls      never                                       —
 --   everything else  lifetime of its Account
+--
+-- A point without a row cannot be rendered; a row without a point is merely
+-- unreachable, so a generation is deleted rows first, points second.

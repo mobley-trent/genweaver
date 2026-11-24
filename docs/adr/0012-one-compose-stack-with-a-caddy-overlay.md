@@ -241,5 +241,21 @@ Corrected in the checked-in stack: `UPLOAD_MAX_BYTES` is **52428800** (50 MiB) i
 deliberately *above* the app ceiling so the app owns the refusal and the proxy only stops a body far past
 it. The principle — the edge cap never binds before the application does — also appears in
 [ADR 0013](0013-serve-a-server-rendered-ui-with-one-stream-client.md), because the browser path is where a
-user meets it. Nothing else in this ADR changes, and the 50 MiB ceiling stays provisional until a real
-50-page-plus PDF is measured.
+user meets it. Nothing else in this ADR changes, and the 50 MiB ceiling stays provisional until a real 50-page-plus PDF is measured.
+
+## Amendment — 2026-11-24: `ensure-collection` creates the alias as well
+
+The migration step above ends in `ensure-collection`, which
+[ADR 0014](0014-reindex-builds-beside-the-serving-index.md) gave a second job: after creating the
+configured collection and its payload indexes if absent, it creates the retrieval alias
+`chunks_current` pointing at that collection **when no alias exists at all** — never repointing one
+that does, because moving traffic is a reindex's cutover, and a migration step that could move it would
+be a deploy that changes what everyone is reading.
+
+That is what makes a fresh deployment and a restored one the same shape: an empty collection, an alias
+pointing at it, and points appearing as the run fills it in. `docker compose up` after a restore is
+therefore safe before the reindex runs, though every question is a miss until it finishes. `migrate`
+still needs Qdrant reachable and its API key — collection creation already did — and still fails closed
+on a store it cannot reach. An embedding identity that disagrees with the serving alias is **not** a
+boot failure: ADR 0014 keeps that a serving state the worker holds, so the site keeps answering on the
+old collection instead of refusing to start.

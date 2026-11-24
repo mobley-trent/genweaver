@@ -40,10 +40,15 @@ That case cannot ride an alias, so this decision has to answer two cutovers, not
 - **Embedding change — build beside, flip the alias.** The target collection has a different name.
   The run fills it while the serving collection answers every query; one atomic alias batch
   publishes it; the superseded collection is kept until an operator retires or rolls back.
-- **Chunker change — rebuild in place, per document.** New chunks land staged, are activated, and are
-  verified by filtered count, then the superseded generation's points are deactivated. This is
-  ingestion's existing protocol, reused, so a document is never both generations for longer than the
-  gap between two filter-based updates — and never neither.
+- **Chunker change — rebuild in place, per document.** New chunks land staged, are activated, are
+  verified by filtered count, and only then is the superseded generation deactivated. This is
+  ingestion's existing protocol, reused. Qdrant offers no call that moves two generations of one
+  document at once, so the two updates leave a window of one round trip in which both generations are
+  active: that document can contribute up to twice its chunks to a single prefetch. It cannot produce
+  a wrong answer — both generations are complete documents — and the window never outlives the job,
+  because the membership row is marked `done` only after the retire update lands (see step 6). The
+  other ordering would trade the same window for a hole in which the document is briefly absent, which
+  is worse for the person asking.
 
 The run **derives** which it is rather than recording it: a shadow build when its target collection
 differs from the one the alias pointed at when the run opened, an in-place rebuild when they are the
@@ -134,7 +139,11 @@ procrastinate queue — no second queue, no new service. Each job:
    `documents.chunks_total`, which still counts the generation being replaced;
 5. and only then writes the target generation onto the document's and chunks' embedding columns and
    moves `chunker_version` and `chunks_total` in the same transaction, so a document row never names
-   a generation whose points are not all active. Then it marks its membership row `done`.
+   a generation whose points are not all active;
+6. and, for an **in-place** run, deactivates the superseded generation's points. The membership row
+   is marked `done` only after that update lands, which is what stops the transient overlap from
+   outliving a crash: a resumed job retires the superseded generation before it activates, and a run
+   cannot reach `verifying` with a duplicate live.
 
 Being ordinary queue jobs is what makes the run resumable: a crash loses at most one document, and
 `reindex --resume <run-id>` re-enqueues that one. Embed calls reuse ingestion's batch size instead of
@@ -272,6 +281,15 @@ here belongs to the observability ticket.
 - **`document_content` grows.** The parse artifact is typically several times the canonical markdown,
   stored without page images (figures are caption-only by [the chunking decision](https://github.com/mobley-trent/genweaver/issues/4)),
   and it is the price of a re-chunk that needs no PDF and no layout pass.
+- **A superseded chunker generation lives 30 days past its replacement, then goes.** The sweep deletes
+  its chunk rows first and their Qdrant points second, by the same `document_id + chunker_version`
+  filter, because a point without a row cannot be rendered while a row without a point is only
+  unreachable. Carried chunks from a conversation older than that drop, which is the behaviour
+  [ADR 0010](./0010-memory-is-a-small-window-over-a-pinned-carry-forward.md) already states, and
+  citations stay legible because they are snapshots. Thirty days is provisional — it matches session
+  retention and moves by a measurement of the chunk table, not by taste — and it is why an embedding
+  migration does not need a retention rule of its own: it rewrites rows in place rather than adding a
+  generation.
 - **Two tables enter the schema** — `reindex_runs` and `reindex_run_documents` — and
   `document_content` gains `parsed_json`. `docs/schema/0001-initial.sql` carries them.
 - **A chunk's embedding columns describe the collection its vector was written to**, so during a run

@@ -101,6 +101,17 @@ which is the artifact an implementer reads.
 - The contract is maintained in one place — the issue resolution — with OpenAPI generated from models
   once code exists. There is no hand-written API document to drift.
 - Ingestion `POST /documents/{id}/retry` and account retention stay separable: retry re-runs a failed
-  ingestion, and reindexing remains
-  [Decide the reindexing and embedding-model migration strategy](https://github.com/mobley-trent/genweaver/issues/18)'s
+  ingestion, and reindexing remains [ADR 0014](./0014-reindex-builds-beside-the-serving-index.md)'s
   decision rather than an endpoint invented here.
+
+## Amendment — 2026-11-24: readiness includes the retrieval alias
+
+[ADR 0014](./0014-reindex-builds-beside-the-serving-index.md) made retrieval read one alias,
+`chunks_current`, rather than a physical collection, so the contract above gains one clause: `/readyz`
+answers 200 only when that alias resolves. Reachable Qdrant is no longer sufficient on its own —
+reachable Qdrant with no alias is a deployment where every question is a miss, which is exactly the
+state readiness exists to refuse.
+
+`/healthz` is unchanged: the alias is a dependency, not the process, and liveness still touches nothing.
+Readiness stays a boolean over the dependencies and the warm verifier — an in-flight reindex leaves it
+green, because the deployment is fully serving on the collection it already points at.
