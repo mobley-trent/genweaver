@@ -98,21 +98,36 @@ Holding topic and genre constant is the point: the only difference between the t
 
 ## Docling parse check
 
-Two of the three parse facts were verified for every document; the third was not.
+Run on 2026-11-25 with **Docling 2.152.0** and **torch 2.15.0+cpu** (CPU-only wheels, so no CUDA download), one conversion per file, with OCR and table-structure disabled:
 
-- **No OCR-only pages.** `pdftotext -layout` returns text for every page of every document — zero pages with an empty text layer — so Docling can run without OCR. This is recorded per document as `docling.ocr_only_pages: 0`.
-- **Heading material present.** Every document carries a machine-extractable heading hierarchy to find: NIST's numbered chapters and subcategory codes, NCSC's numbered requirement sections, the RFCs' numbered sections (with a Contents tree), NHTSA's numbered tables and figures, BJS's offence sections, CISA's technical-detail subsections.
-- **Docling itself was not run.** The dependency install stalled on the CUDA wheels of the default PyPI `torch` (12 minutes, no progress) and was abandoned rather than left half-done. The conversion therefore remains to be observed; the manifest says `docling.status: "not-run"` for all ten rather than claiming a result.
-
-The first place it can be observed is the harness's own `evals build-index`, which parses the PDFs with Docling. To check it sooner:
-
-```bash
-uv venv --python 3.12 .cache/docling-venv
-uv pip install --python .cache/docling-venv/bin/python docling
-for f in .cache/corpus/*.pdf; do .cache/docling-venv/bin/docling --to md --output .cache/docling-out "$f"; done
+```python
+opts.do_ocr = False
+opts.do_table_structure = False
+opts.generate_page_images = False
 ```
 
-If a document turns out to produce no heading tree, the ones to revisit are `ncsc-ce-3.3` (heavy numbered lists) and `bjs-cv-2023` (dense statistics tables); the RFCs and NIST documents are the lowest risk because their headings are numbered.
+All ten converted with `ConversionStatus.SUCCESS`. "Text pages" counts pages that produced at least one text item; "headings" counts the `TITLE` and `SECTION_HEADER` items Docling inferred.
+
+| id | pages | pages with text | OCR-only pages | headings |
+| --- | --- | --- | --- | --- |
+| `nist-ai-rmf-1.0` | 48 | 48 | 0 | 38 |
+| `ncsc-ce-3.3` | 26 | 26 | 0 | 46 |
+| `rfc-9111` | 35 | 35 | 0 | 81 |
+| `rfc-9457` | 16 | 16 | 0 | 28 |
+| `rfc-9562` | 46 | 46 | 0 | 103 |
+| `tacl-lost-in-the-middle` | 17 | 17 | 0 | 27 |
+| `nhtsa-early-2022` | 5 | 5 | 0 | 7 |
+| `nhtsa-overview-2022` | 18 | 18 | 0 | 18 |
+| `cisa-aa24-317a` | 30 | 30 | 0 | 26 |
+| `bjs-cv-2023` | 36 | 36 | 0 | 79 |
+| **total** | **277** | **277** | **0** | **453** |
+
+- **No OCR-only pages.** Every page yielded text, so Docling never needed OCR and `docling.ocr_pages` is 0 throughout. This agrees with the independent `pdftotext` check.
+- **Heading tree present in all ten.** Counts run from 7 (the five-page NHTSA brief) to 103 (RFC 9562). Both documents flagged as risky before the run parsed structurally: the NCSC numbered-list document yields 46 headings and the dense BJS statistics report 79.
+- **Table structure was not evaluated** (`do_table_structure=False`); this check was the heading tree and OCR coverage. Table fidelity belongs to the first `evals build-index`, which runs Docling with the production settings.
+- **Cost:** 813.9 seconds (13.6 minutes) for 277 pages on 5 CPU cores.
+
+Per-document results are recorded in `evals/corpus.json` under each document's `docling` field: `status`, `conversion`, `pages`, `pages_with_text`, `pages_without_text`, `ocr_pages`, `heading_tree`, `headings`, `markdown_headings`, `parse_seconds`.
 
 ## Fetching
 

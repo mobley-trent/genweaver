@@ -14,9 +14,25 @@
       "license_url": "https://www.nist.gov/open/license",
       "pages": 48,
       "bytes": 1946127,
-      "tags": ["identifiers", "tables", "figure", "cross-page"],
+      "tags": [
+        "identifiers",
+        "tables",
+        "figure",
+        "cross-page"
+      ],
       "exercises": "Identifier-heavy subcategory codes (GV-1.1, MEASURE 2.5) and named actors; fifteen tables and twelve captioned figures; the core-functions material and the MEASURE chapter each run across several pages, forcing page-crossing chunks.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 48,
+        "pages_with_text": 48,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 38,
+        "markdown_headings": 38,
+        "parse_seconds": 194.8
+      }
     },
     {
       "id": "ncsc-ce-3.3",
@@ -29,9 +45,25 @@
       "license_url": "https://www.ncsc.gov.uk/section/about-this-website/terms-and-conditions",
       "pages": 26,
       "bytes": 832051,
-      "tags": ["identifiers", "tables", "figure", "cross-page"],
+      "tags": [
+        "identifiers",
+        "tables",
+        "figure",
+        "cross-page"
+      ],
       "exercises": "Numbered assessment requirements and MFA/patch-management control identifiers, plus two tables and a figure; requirements are grouped in sections that continue across pages.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 26,
+        "pages_with_text": 26,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 46,
+        "markdown_headings": 46,
+        "parse_seconds": 71.1
+      }
     },
     {
       "id": "rfc-9111",
@@ -44,9 +76,24 @@
       "license_url": "https://trustee.ietf.org/license-info",
       "pages": 35,
       "bytes": 566083,
-      "tags": ["identifiers", "tables", "cross-page"],
+      "tags": [
+        "identifiers",
+        "tables",
+        "cross-page"
+      ],
       "exercises": "Cache-Control and other directive names as lexical identifiers; two tables; Section 4 (Constructing Responses from Caches) is a long normative section spanning many pages.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 35,
+        "pages_with_text": 35,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 81,
+        "markdown_headings": 81,
+        "parse_seconds": 94.3
+      }
     },
     {
       "id": "rfc-9457",
@@ -59,9 +106,24 @@
       "license_url": "https://trustee.ietf.org/license-info",
       "pages": 16,
       "bytes": 214288,
-      "tags": ["identifiers", "prose", "cross-page"],
+      "tags": [
+        "identifiers",
+        "prose",
+        "cross-page"
+      ],
       "exercises": "Member names (type, title, status, detail, instance) as lexical identifiers, and continuous normative prose with no tables or figures — the short, prose-dense end of the profile.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 16,
+        "pages_with_text": 16,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 28,
+        "markdown_headings": 29,
+        "parse_seconds": 42.5
+      }
     },
     {
       "id": "rfc-9562",
@@ -74,9 +136,25 @@
       "license_url": "https://trustee.ietf.org/license-info",
       "pages": 46,
       "bytes": 535145,
-      "tags": ["identifiers", "tables", "figure", "cross-page"],
+      "tags": [
+        "identifiers",
+        "tables",
+        "figure",
+        "cross-page"
+      ],
       "exercises": "Version and variant names, field names and bit-layout vocabulary; six tables and thirty-one bit-layout figures; the version-by-version clauses run long enough to cross pages.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 46,
+        "pages_with_text": 46,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 103,
+        "markdown_headings": 104,
+        "parse_seconds": 122.0
+      }
     },
     {
       "id": "tacl-lost-in-the-middle",
@@ -89,9 +167,25 @@
       "license_url": "https://creativecommons.org/licenses/by/4.0/",
       "pages": 17,
       "bytes": 2609413,
-      "tags": ["figure", "tables", "prose", "cross-page"],
+      "tags": [
+        "figure",
+        "tables",
+        "prose",
+        "cross-page"
+      ],
       "exercises": "Continuous academic prose with seventeen captioned figures and results tables; the experiment sections span pages, and the paper is also the one document whose subject matter (position bias in long contexts) matches the system's own retrieval problem.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 17,
+        "pages_with_text": 17,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 27,
+        "markdown_headings": 27,
+        "parse_seconds": 46.6
+      }
     },
     {
       "id": "nhtsa-early-2022",
@@ -104,9 +198,24 @@
       "license_url": "https://www.usa.gov/government-copyright",
       "pages": 5,
       "bytes": 341699,
-      "tags": ["tables", "figure", "disagreement"],
+      "tags": [
+        "tables",
+        "figure",
+        "disagreement"
+      ],
       "exercises": "Projected counts and percent changes in four figures and three tables; one half of the disagreement pair: it reports 42,795 deaths in 2022, a 0.3 percent decrease from 42,939 in 2021 (page 1).",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 5,
+        "pages_with_text": 5,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 7,
+        "markdown_headings": 7,
+        "parse_seconds": 14.8
+      }
     },
     {
       "id": "nhtsa-overview-2022",
@@ -119,9 +228,25 @@
       "license_url": "https://www.usa.gov/government-copyright",
       "pages": 18,
       "bytes": 2978150,
-      "tags": ["tables", "figure", "cross-page", "disagreement"],
+      "tags": [
+        "tables",
+        "figure",
+        "cross-page",
+        "disagreement"
+      ],
       "exercises": "Seventeen tables and eleven figures of final counts and rates; the other half of the disagreement pair: it reports 42,514 deaths in 2022, a 1.7 percent decrease from the revised 43,230 in 2021 (page 1), and its state table on page 17 repeats both revised totals.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 18,
+        "pages_with_text": 18,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 18,
+        "markdown_headings": 18,
+        "parse_seconds": 49.0
+      }
     },
     {
       "id": "cisa-aa24-317a",
@@ -134,9 +259,24 @@
       "license_url": "https://www.cisa.gov/tlp",
       "pages": 30,
       "bytes": 929016,
-      "tags": ["identifiers", "tables", "cross-page"],
+      "tags": [
+        "identifiers",
+        "tables",
+        "cross-page"
+      ],
       "exercises": "The densest identifier document in the corpus: CVE and CWE ids, vendor product names and version strings, plus two tables; the per-vulnerability technical details run across many pages.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 30,
+        "pages_with_text": 30,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 26,
+        "markdown_headings": 26,
+        "parse_seconds": 80.9
+      }
     },
     {
       "id": "bjs-cv-2023",
@@ -149,9 +289,24 @@
       "license_url": "https://www.usa.gov/government-copyright",
       "pages": 36,
       "bytes": 1115691,
-      "tags": ["tables", "figure", "cross-page"],
+      "tags": [
+        "tables",
+        "figure",
+        "cross-page"
+      ],
       "exercises": "Sixteen statistical tables and two figures with rates, confidence intervals and year comparisons; the offence-by-offence sections and the appendix tables cross pages.",
-      "docling": { "status": "not-run", "ocr_only_pages": 0, "note": "Text layer present on every page (pdftotext, 0 empty pages); Docling conversion deferred to the first evals build-index." }
+      "docling": {
+        "status": "parsed",
+        "conversion": "SUCCESS",
+        "pages": 36,
+        "pages_with_text": 36,
+        "pages_without_text": 0,
+        "ocr_pages": 0,
+        "heading_tree": true,
+        "headings": 79,
+        "markdown_headings": 79,
+        "parse_seconds": 97.9
+      }
     }
   ]
 }
