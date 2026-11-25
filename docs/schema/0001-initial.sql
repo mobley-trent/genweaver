@@ -415,7 +415,7 @@ create index answer_requests_retention on answer_requests (settled_at)
 -- total is a query. owner_id nulls when the Account goes, so the deployment's
 -- month stays summable with the payer gone.
 create table model_calls (
-  id                       bigserial primary key,
+  id                       bigserial primary key,   -- never named or paged: ADR 0011's third exception
   created_at               timestamptz not null default now(),
   owner_id                 uuid references accounts(id) on delete set null,
   scope                    text not null check (scope in ('product', 'eval')),

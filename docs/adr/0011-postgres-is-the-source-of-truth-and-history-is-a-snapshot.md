@@ -23,7 +23,7 @@ Three facts from those decisions turned out to determine most of the shape.
 
 **Postgres owns chunk display text; canonical markdown is the only ground truth.** `document_content` holds the parse artifact in its own table so the polled status row stays narrow, and `chunks.text` is stored *as a verified slice* of it — ingestion asserts byte equality before the row exists. Qdrant's payload `text` is a projection rebuilt from these rows, never the other way round, and the Qdrant payload is not a source of truth for anything Postgres also stores.
 
-**Keys: `uuidv7()` from the database, with two exceptions.** Every domain id defaults to `uuidv7()`, so a worker, a `psql` session and the API all get the same time-ordered ids and cursor pagination is honest without a second ordering column. Chunks are `uuid5(document_id, chunker_version, chunk_index)` — deterministic, equal to the Qdrant point id, so re-embedding overwrites. Answers are allocated app-side, because `answer_started` carries an id before any row exists.
+**Keys: `uuidv7()` from the database, with three exceptions.** Every domain id a client can name, address or page by defaults to `uuidv7()`, so a worker, a `psql` session and the API all get the same time-ordered ids and cursor pagination is honest without a second ordering column. Chunks are `uuid5(document_id, chunker_version, chunk_index)` — deterministic, equal to the Qdrant point id, so re-embedding overwrites. Answers are allocated app-side, because `answer_started` carries an id before any row exists. Usage rows take a `bigserial`, because nothing addresses one — see the amendment at the foot of this ADR.
 
 **Live edges cascade; history rows are snapshots.** Everything owned by an Account cascades with it. `model_calls.owner_id` nulls instead, so a deleted Account does not erase the month it spent. Citations and evidence rows carry `chunk_id` and `document_id` as **plain columns with no foreign key**: they are records of what an answer was given, and a live FK would force every document deletion to rewrite history. Verdicts belong to a `verification_runs` row rather than to a citation, so re-derivation after a threshold change appends a run instead of mutating the verdict an answer shipped with. Claim state is derived from citation verdicts, never stored.
 
@@ -127,3 +127,21 @@ absence, so one nullable column expresses the whole state machine and `status` n
 value. A purge removes the relational rows in one transaction and the vectors through a job deferred
 inside it. The one rule the schema cannot constrain — at least one Account with
 `role = 'admin' and deactivated_at is null` — joins the comment list at the foot of the file.
+
+## Amendment — 2026-11-25: the ledger's key is a `bigserial`
+
+The rule above claimed two exceptions and the schema has always had three: `model_calls.id` is a
+`bigserial`, as [ADR 0008](./0008-price-every-call-and-gate-spend-before-the-call.md) drew it.
+Naming it beats changing it, because the reason `uuidv7()` exists does not reach this table —
+**nothing addresses a usage row by id.** No route takes one, no table references one, and the ledger
+is never paged by it: it is summed by `(owner_id, scope, created_at)` for a month and by
+`(scope, created_at)` for the deployment, and looked up by `(subject_kind, subject_id)` when
+something needs to know which calls produced an artifact. The id identifies a row inside its own
+table and nothing else.
+
+The rejection of `bigserial` under Considered Options still stands, and is why this is an exception
+rather than a policy change: it leaks volume, and it forces a second column for the ordering a
+cursor needs. A ledger needs neither — sequence order *is* insert order, which is the only order it
+has, and an admin reading the usage table already sees the deployment's call counts, so volume is
+no secret there. Meanwhile this is the one table that grows a row per provider call, where 8 bytes
+against 16 is the whole difference and the table is the largest by row count in the system.
