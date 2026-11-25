@@ -22,6 +22,14 @@ _Avoid_: permission, scope, group
 One signed-in browser's authority to act as an Account, held server-side and revocable at any moment. A Session ends by logout, by idleness, by age, or by an Admin.
 _Avoid_: token, cookie, login, JWT
 
+**Deactivated account**:
+An Account an Admin has suspended: it cannot sign in, none of its Sessions resolve, and everything it owns is exactly as it was, so reactivating it restores the Account as it stood. Distinct from deletion, which is the Account ceasing to exist.
+_Avoid_: disabled user, banned account, suspended login
+
+**Purge**:
+The removal of everything a deleted Account owns — its documents, chunks, conversations, answers and the vectors derived from them — from every store holding a copy. The only operation in the system that destroys data beyond recovery, and it leaves untouched only what was never the Account's own: the spend it caused and the Invite that admitted it.
+_Avoid_: hard delete, cascade delete, account wipe
+
 ### Documents and retrieval units
 
 **Chunk**:

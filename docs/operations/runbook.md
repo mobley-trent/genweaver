@@ -132,13 +132,24 @@ docker compose exec api python -m app.cli invite create --email person@example.c
 docker compose exec api python -m app.cli invite revoke <invite-id>
 docker compose exec api python -m app.cli sessions terminate --email person@example.com
 docker compose exec api python -m app.cli password-reset --email person@example.com
+docker compose exec api python -m app.cli account deactivate --email person@example.com
+docker compose exec api python -m app.cli account reactivate --email person@example.com
+docker compose exec api python -m app.cli account delete --email person@example.com --yes
 ```
 
 `invite create` prints the token and its redemption URL **once**; the database keeps only a hash. There
 is no mail delivery: hand the URL over yourself. `sessions terminate` is the answer to a lost device
-or a compromised password, and takes effect on the next request. Deactivating or deleting an Account
-is [its own decision](https://github.com/mobley-trent/genweaver/issues/19); this runbook does not
-improvise it.
+or a compromised password, and takes effect on the next request.
+
+The three account commands are different answers, and only one of them is reversible. **Terminate**
+ends access and keeps everything, so the next sign-in works. **Deactivate** refuses sign-in and
+revokes every Session while keeping every document, chunk, vector, conversation and answer; it is
+undone by `account reactivate`, an Invite cannot be minted for the address while it stands, and the
+Account's own sign-in says it is deactivated rather than claiming the password was wrong. **Delete**
+purges the Account in two stores — the relational rows in one transaction, its Qdrant points by
+queue work that survives a crash — and the product cannot undo it: restore the nightly backup and run
+`reindex --all`, which brings the documents back with the Account. The last active admin can be
+neither deactivated nor deleted, so the deployment cannot lock itself out.
 
 ## Backup and restore
 

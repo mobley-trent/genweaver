@@ -22,7 +22,12 @@ create table accounts (
   email         text not null,
   password_hash text not null,                  -- argon2id PHC string
   role          text not null default 'member' check (role in ('admin', 'member')),
-  created_at    timestamptz not null default now()
+  created_at    timestamptz not null default now(),
+  -- The whole reversible half of the lifecycle: a deleted Account has no row at
+  -- all, so this column plus the row's absence is the state machine (ADR 0015).
+  -- No index: it is read by primary key (the identity resolver) or across a
+  -- table the size of the invite list (/admin).
+  deactivated_at timestamptz
 );
 -- Uniqueness is case-insensitive while the address is stored as written.
 create unique index accounts_email_lower on accounts (lower(email));
@@ -450,6 +455,11 @@ create index model_calls_subject on model_calls (subject_kind, subject_id);
 --      mixed per document and never per row (ADR 0011's amendment).
 --   5. model_calls.owner_id is not null whenever scope = 'product' — except
 --      after the Account is deleted, which is what `on delete set null` is for.
+--   6. At least one Account with role = 'admin' and deactivated_at is null
+--      exists at all times. Enforced in the transaction that deactivates,
+--      deletes or demotes, with the live admin rows locked: a CHECK cannot
+--      count rows, and a count read before the write would be a check rather
+--      than an invariant (ADR 0015).
 --
 -- Retention (owned by the maintenance sweep, one task each, all idempotent):
 --
