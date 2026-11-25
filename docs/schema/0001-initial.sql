@@ -2,8 +2,14 @@
 --
 -- The specification for [Specify the Postgres data model](../../docs/adr/0011-postgres-is-the-source-of-truth-and-history-is-a-snapshot.md).
 -- This file is the source for Alembic migration `0001_initial`. It parses under
--- libpg_query (Postgres's own grammar): 43 statements, 19 tables, 24 indexes.
--- It has never been executed against a server — syntax is not behaviour.
+-- libpg_query (Postgres's own grammar): 43 statements, 19 tables, 24 explicit
+-- indexes (pg_indexes reports 47; the rest are implicit, from primary keys and
+-- inline `unique` constraints).
+--
+-- Executed against postgres:18.7-trixie on 2026-11-25: all 43 statements apply,
+-- the uuidv7() defaults fire, and the partial-unique indexes and CHECKs reject
+-- the rows they exist to reject. It has held no real data — constraints are not
+-- query plans, and nothing here has run under load.
 --
 -- Requires PostgreSQL >= 18 for `uuidv7()`.
 -- All timestamps are `timestamptz` and UTC. All money is integer micro-USD.
