@@ -115,7 +115,8 @@ the run recorded — still one document at a time, and only while the superseded
 
 The schema's rule 4 comment now carries the short form of this definition, so the spec and this
 amendment say the same thing. Nothing else in this ADR moves: answers, citations, evidence and
-verdicts stay insert-only, and a reindex touches no history row, because what keeps a citation legible is its snapshot, not the chunk it once pointed at.
+verdicts stay insert-only, and a reindex touches no history row, because what keeps a citation
+legible is its snapshot, not the chunk it once pointed at.
 
 ## Amendment — 2026-11-25: the deactivation ticket is closed
 
