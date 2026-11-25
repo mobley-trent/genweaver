@@ -40,3 +40,5 @@ The deciding constraint is the one the whole project is built on: `clone → env
 See [`docs/research/auth-options.md`](../research/auth-options.md) for the comparison and sources this rests on.
 
 **Naming amendment (2026-11-24).** The table this ADR calls `users` is `accounts`, and `owner_id` on every tenant-scoped table references it. **Account** is the glossary's term and the only identity this system has; the decision above is unchanged. [ADR 0011](./0011-postgres-is-the-source-of-truth-and-history-is-a-snapshot.md) carries the schema.
+
+**Amendment (2026-11-25).** Deactivation is no longer an open question. [ADR 0015](./0015-deactivation-is-reversible-and-deletion-purges-two-stores.md) settles it: an Account is `active`, `deactivated` — sign-in refused, every Session revoked, everything it owns kept — or `deleted`, which is the row's absence. The session model above is unchanged; deactivation reuses its revocation rather than adding a second mechanism.

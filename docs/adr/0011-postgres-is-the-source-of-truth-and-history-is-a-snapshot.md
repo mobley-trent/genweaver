@@ -115,5 +115,14 @@ the run recorded — still one document at a time, and only while the superseded
 
 The schema's rule 4 comment now carries the short form of this definition, so the spec and this
 amendment say the same thing. Nothing else in this ADR moves: answers, citations, evidence and
-verdicts stay insert-only, and a reindex touches no history row, because what keeps a citation legible
-is its snapshot, not the chunk it once pointed at.
+verdicts stay insert-only, and a reindex touches no history row, because what keeps a citation legible is its snapshot, not the chunk it once pointed at.
+
+## Amendment — 2026-11-25: the deactivation ticket is closed
+
+The consequence above left "whether the product offers that or only a disable flag" to a separate
+decision. [ADR 0015](./0015-deactivation-is-reversible-and-deletion-purges-two-stores.md) settled it:
+**both exist.** `deactivated_at` on `accounts` is the reversible half and deletion is the row's
+absence, so one nullable column expresses the whole state machine and `status` never grows a `deleted`
+value. A purge removes the relational rows in one transaction and the vectors through a job deferred
+inside it. The one rule the schema cannot constrain — at least one Account with
+`role = 'admin' and deactivated_at is null` — joins the comment list at the foot of the file.

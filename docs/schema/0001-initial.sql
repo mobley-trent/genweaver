@@ -18,11 +18,11 @@
 -- ─── identity and access ────────────────────────────────────────────────
 
 create table accounts (
-  id            uuid primary key default uuidv7(),
-  email         text not null,
-  password_hash text not null,                  -- argon2id PHC string
-  role          text not null default 'member' check (role in ('admin', 'member')),
-  created_at    timestamptz not null default now(),
+  id             uuid primary key default uuidv7(),
+  email          text not null,
+  password_hash  text not null,                 -- argon2id PHC string
+  role           text not null default 'member' check (role in ('admin', 'member')),
+  created_at     timestamptz not null default now(),
   -- The whole reversible half of the lifecycle: a deleted Account has no row at
   -- all, so this column plus the row's absence is the state machine (ADR 0015).
   -- No index: it is read by primary key (the identity resolver) or across a
