@@ -1,0 +1,5 @@
+{
+  "id": "two-documents",
+  "purpose": "One tenant library holding both the 2022 early estimate and the final 2022 overview, which disagree on the same fact (42,795 vs 42,514 deaths; 0.3 percent vs 1.7 percent decrease). This is the library the insufficient_support state and the confidence gate ceilings are fitted on.",
+  "documents": ["nhtsa-early-2022", "nhtsa-overview-2022"]
+}

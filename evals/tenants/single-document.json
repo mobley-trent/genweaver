@@ -1,0 +1,5 @@
+{
+  "id": "single-document",
+  "purpose": "One tenant library holding only the final 2022 overview, so a question about 2022 fatalities has exactly one authoritative source. Paired with the two-document library, it isolates the effect of conflicting evidence on the confidence band.",
+  "documents": ["nhtsa-overview-2022"]
+}
